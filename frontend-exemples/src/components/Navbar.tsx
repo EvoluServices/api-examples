@@ -1,41 +1,50 @@
 'use client';
+
 import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { AppBar, Toolbar, Button, Box } from '@mui/material';
+import { usePathname } from 'next/navigation';
+import { AppBar, Toolbar, Button, Box, Typography } from '@mui/material';
 
-const Navbar = () => {
-  const router = useRouter();
+import { NavbarProps } from '@/interfaces/navbar';
 
-  const isActive = (path: string) => router.pathname === path;
+const Navbar = ({ pages }: NavbarProps) => {
+    const pathname = usePathname();
 
-  return (
-    <AppBar position="static" sx={{ backgroundColor: '#468899', boxShadow: 'none' }}>
-      <Toolbar>
-        <Box sx={{ flexGrow: 1, display: 'flex', gap: 3 }}>
-          <Link href="/" passHref legacyBehavior>
-            <Button
-              disableRipple
-              sx={{
-                color: 'white',
-                fontWeight: isActive('/') ? 'bold' : 'normal',
-                borderBottom: isActive('/') ? '2px solid white' : 'none',
-                borderRadius: 0,
-                textTransform: 'none',
-                backgroundColor: 'transparent', // fundo sempre transparente
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.1)', // efeito ao passar o mouse
-                },
-              }}
-            >
-              Nova Venda
-            </Button>
-          </Link>
+    const isActive = (path: string) => pathname === path;
 
-          
-        </Box>
-      </Toolbar>
-    </AppBar>
-  );
+    return (
+        <AppBar
+            position="static"
+            color="primary"
+            elevation={0}
+        >
+            <Toolbar>
+                <Box sx={{ flexGrow: 1, display: 'flex', gap: 2 }}>
+                    {pages.map((page) => (
+                        <Link key={page.href} href={page.href} passHref>
+                            <Button
+                                disableRipple
+                                sx={{
+                                    borderBottom: isActive(page.href) ? '2px solid #fff' : 'none',
+                                    borderRadius: 0,
+                                    textTransform: 'none',
+                                }}
+                            >
+                                <Typography
+                                    sx={{
+                                        color: '#FFF',
+                                        fontSize: '16px',
+                                        fontWeight: isActive(page.href) ? 700 : 400,
+                                    }}
+                                >
+                                    {page.name}
+                                </Typography>
+                            </Button>
+                        </Link>
+                    ))}
+                </Box>
+            </Toolbar>
+        </AppBar>
+    );
 };
 
 export default Navbar;
