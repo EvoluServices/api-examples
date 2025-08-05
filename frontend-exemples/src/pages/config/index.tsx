@@ -1,16 +1,17 @@
+import {useState} from "react";
 import {Box, Grid, Typography, Button, IconButton,Snackbar, Alert, TextField, Radio, Collapse} from "@mui/material";
 import { Stack } from "@mui/system";
 import CodeIcon from "@mui/icons-material/Code";
 import FactoryIcon from "@mui/icons-material/Factory";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import {useState} from "react";
-
+import Cookies from 'js-cookie';
 
 export default function Index() {
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'warning'>('warning');
 
     const [partnerDevKeyOpen, setPartnerDevKeyOpen] = useState(false);
     const PartnerDevKeyToggleOpen = () => setPartnerDevKeyOpen((prev) => !prev);
@@ -70,6 +71,7 @@ export default function Index() {
     const handleSave = () => {
         if (!selectedEnvironment) {
             setSnackbarMessage("Selecione um ambiente antes de salvar.");
+            setSnackbarSeverity("warning");
             setSnackbarOpen(true);
             return;
         }
@@ -90,13 +92,30 @@ export default function Index() {
 
         if (hasError) {
             setSnackbarMessage("Preencha todos os campos obrigatórios.");
+            setSnackbarSeverity("warning");
             setSnackbarOpen(true);
             return;
         }
 
-        console.log("Dados a serem salvos:", values);
-    };
+        const environmentUrl =
+            selectedEnvironment === "dev"
+                ? "https://sandbox.evoluservices.com"
+                : "https://api.evoluservices.com";
 
+        const config = {
+            environment: selectedEnvironment,
+            url: environmentUrl,
+            values,
+        };
+
+        Cookies.set('api-examples-config', JSON.stringify(config));
+
+        setSnackbarMessage("Configurações salvas com sucesso.");
+        setSnackbarSeverity("success");
+        setSnackbarOpen(true);
+
+        console.log("Configuração salva:", config);
+    };
 
     return (
         <Box
@@ -244,6 +263,7 @@ export default function Index() {
                                         <TextField
                                             label="Senha"
                                             variant="outlined"
+                                            type="password"
                                             fullWidth
                                             value={devValues.apiSecret}
                                             onChange={(e) => handleInputChange('dev', 'apiSecret', e.target.value)}
@@ -421,6 +441,7 @@ export default function Index() {
                                             <TextField
                                                 label="Senha"
                                                 variant="outlined"
+                                                type="password"
                                                 fullWidth
                                                 value={prodValues.apiSecret}
                                                 onChange={(e) => handleInputChange('prod', 'apiSecret', e.target.value)}
@@ -539,7 +560,7 @@ export default function Index() {
             >
                 <Alert
                     onClose={() => setSnackbarOpen(false)}
-                    severity="warning"
+                    severity={snackbarSeverity}
                     sx={{ width: '100%' }}
                 >
                     {snackbarMessage}

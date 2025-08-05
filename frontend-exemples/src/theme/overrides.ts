@@ -12,6 +12,10 @@ export const components: Components = {
                     backgroundColor: '#BFDEC1',
                     color: '#3D5C3F',
                 },
+                '&.MuiAlert-standardWarning': {
+                    backgroundColor: '#F9DAAC',
+                    color: '#F0A330',
+                },
             },
         },
     },
