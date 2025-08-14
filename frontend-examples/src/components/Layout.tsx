@@ -5,7 +5,7 @@ export default function Layout() {
         <>
             <Navbar
                 pages={[
-                    { href: '/', name: 'Nova Venda' },
+                    { href: '/transactions', name: 'Nova Venda' },
                     { href: '/config', name: 'Configurações' },
                 ]}
             />
