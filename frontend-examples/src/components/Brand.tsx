@@ -1,126 +1,126 @@
-export interface Bandeira {
+export interface Brand {
   label: string;
   value: string;
-  imagem: string;
-  tipo: 'credito' | 'debito';
+  images: string;
+  type: 'credit' | 'debit';
 }
 
-export const bandeiras: Bandeira[] = [
+export const brands: Brand[] = [
   // Crédito
   {
     label: 'Visa',
     value: 'VISA_CREDITO',
-    imagem: '/imagens/visa.png',
-    tipo: 'credito',
+    images: '/images/visa.png',
+    type: 'credit',
   },
   {
     label: 'Mastercard',
     value: 'MASTERCARD_CREDITO',
-    imagem: '/imagens/mastercard.png',
-    tipo: 'credito',
+    images: '/images/mastercard.png',
+    type: 'credit',
   },
   {
     label: 'Elo',
     value: 'ELO_CREDITO',
-    imagem: '/imagens/elo.png',
-    tipo: 'credito',
+    images: '/images/elo.png',
+    type: 'credit',
   },
   {
     label: 'Hipercard',
     value: 'HIPERCARD_CREDITO',
-    imagem: '/imagens/hipercard.png',
-    tipo: 'credito',
+    images: '/images/hipercard.png',
+    type: 'credit',
   },
   {
     label: 'American Express',
     value: 'AMEX_CREDITO',
-    imagem: '/imagens/american-express.png',
-    tipo: 'credito',
+    images: '/images/american-express.png',
+    type: 'credit',
   },
   {
     label: 'Cabal',
     value: 'CABAL_CREDITO',
-    imagem: '/imagens/cabal.png',
-    tipo: 'credito',
+    images: '/images/cabal.png',
+    type: 'credit',
   },
   {
     label: 'Sorocred',
     value: 'SOROCRED_CREDITO',
-    imagem: '/imagens/sorocred.png',
-    tipo: 'credito',
+    images: '/images/sorocred.png',
+    type: 'credit',
   },
   {
     label: 'Hiper',
     value: 'HIPER_CREDITO',
-    imagem: '/imagens/hiper.png',
-    tipo: 'credito',
+    images: '/images/hiper.png',
+    type: 'credit',
   },
   {
     label: 'Banescard',
     value: 'BANESCARD_CREDITO',
-    imagem: '/imagens/banescard.png',
-    tipo: 'credito',
+    images: '/images/banescard.png',
+    type: 'credit',
   },
   {
     label: 'Mais!',
     value: 'MAIS_CREDITO',
-    imagem: '/imagens/mais.png',
-    tipo: 'credito',
+    images: '/images/mais.png',
+    type: 'credit',
   },
   {
     label: 'Discover',
     value: 'DISCOVER_CREDITO',
-    imagem: '/imagens/discover.png',
-    tipo: 'credito',
+    images: '/images/discover.png',
+    type: 'credit',
   },
   {
     label: 'Diners Club',
     value: 'DINERS_CREDITO',
-    imagem: '/imagens/diners.png',
-    tipo: 'credito',
+    images: '/images/diners.png',
+    type: 'credit',
   },
 
   // Débito
   {
     label: 'Visa Débito',
     value: 'VISA_DEBITO',
-    imagem: '/imagens/visa-electron.png',
-    tipo: 'debito',
+    images: '/images/visa-electron.png',
+    type: 'debit',
   },
   {
     label: 'Mastercard Débito',
     value: 'MASTERCARD_DEBITO',
-    imagem: '/imagens/mastercard.png',
-    tipo: 'debito',
+    images: '/images/mastercard.png',
+    type: 'debit',
   },
   {
     label: 'Elo Débito',
     value: 'ELO_DEBITO',
-    imagem: '/imagens/elo.png',
-    tipo: 'debito',
+    images: '/images/elo.png',
+    type: 'debit',
   },
   {
     label: 'Cabal Débito',
     value: 'CABAL_DEBITO',
-    imagem: '/imagens/cabal.png',
-    tipo: 'debito',
+    images: '/images/cabal.png',
+    type: 'debit',
   },
   {
     label: 'Redeshop',
     value: 'REDESHOP_DEBITO',
-    imagem: '/imagens/redeshop.png',
-    tipo: 'debito',
+    images: '/images/redeshop.png',
+    type: 'debit',
   },
   {
     label: 'Sicredi',
     value: 'SICREDI_DEBITO',
-    imagem: '/imagens/sicredi.png',
-    tipo: 'debito',
+    images: '/images/sicredi.png',
+    type: 'debit',
   },
   {
     label: 'Sorocred Débito',
     value: 'SOROCRED_DEBITO',
-    imagem: '/imagens/sorocred.png',
-    tipo: 'debito',
+    images: '/images/sorocred.png',
+    type: 'debit',
   },
 ];
