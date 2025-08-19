@@ -77,9 +77,17 @@ export default function Pinpad() {
                   >
                     {filteredBrands.map((b) => (
                         <MenuItem key={b.value} value={b.value}>
-                          {b.label}
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <img
+                                src={b.images}
+                                alt={b.label}
+                                style={{ width: 24, height: 16, marginRight: 8 }}
+                            />
+                            {b.label}
+                          </Box>
                         </MenuItem>
                     ))}
+
                   </Select>
                 </FormControl>
               </Box>

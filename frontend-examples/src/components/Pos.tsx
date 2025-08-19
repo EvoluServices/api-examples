@@ -39,10 +39,12 @@ export default function Pos() {
 
   return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+
         {/* Payment Type + Brand + Installments */}
         <Box sx={{ display: 'flex', gap: 2 }}>
+
           {/* Payment Type */}
-          <Box sx={{ width: '150px' }}>
+          <Box sx={{ width: '200px' }}>
             <FormControl fullWidth size="small">
               <InputLabel id="payment-type-label">Modalidade</InputLabel>
               <Select
@@ -75,9 +77,17 @@ export default function Pos() {
                   >
                     {filteredBrands.map((b) => (
                         <MenuItem key={b.value} value={b.value}>
-                          {b.label}
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <img
+                                src={b.images}
+                                alt={b.label}
+                                style={{ width: 24, height: 16, marginRight: 8 }}
+                            />
+                            {b.label}
+                          </Box>
                         </MenuItem>
                     ))}
+
                   </Select>
                 </FormControl>
               </Box>

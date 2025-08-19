@@ -31,6 +31,7 @@ export default function Order() {
   const showBrand = !!amount;
   const showInstallments = showBrand && !!cardBrand;
   const showCustomerFields = showInstallments && !!installments;
+  const creditBrands = brands.filter((b) => b.type === 'credit');
 
   return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
@@ -38,14 +39,14 @@ export default function Order() {
         <Box sx={{ display: 'flex', gap: 2 }}>
           {/* Card Brand */}
           {showBrand && (
-              <Box sx={{ width: '50%' }}>
+              <Box sx={{ width: '300px' }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Card Brand</InputLabel>
+                  <InputLabel>Bandeiras</InputLabel>
                   <Select
                       value={cardBrand || ''}
                       onChange={(e) => setCardBrand(e.target.value)}
                   >
-                    {brands.map((b) => (
+                    {creditBrands.map((b) => (
                         <MenuItem key={b.value} value={b.value}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <img
@@ -64,9 +65,9 @@ export default function Order() {
 
           {/* Installments */}
           {showInstallments && (
-              <Box sx={{ width: '50%' }}>
+              <Box sx={{ width: '100%' }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Installments</InputLabel>
+                  <InputLabel>Parcelamento</InputLabel>
                   <Select
                       value={installments}
                       onChange={(e) => setInstallments(e.target.value)}
