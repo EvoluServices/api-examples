@@ -5,6 +5,8 @@ import POS from '@/components/Pos';
 import Order from "@/components/Order";
 import CurrencyInput from '@/components/CurrencyInput';
 import { useTransaction } from '@/contexts/TransactionContext';
+import { Store, CreditCard, Link } from 'lucide-react';
+
 
 export default function TransactionsPage() {
     const [value, setValue] = useState('');
@@ -17,7 +19,7 @@ export default function TransactionsPage() {
     const { setAmount } = useTransaction();
 
     const methodLabels: Record<string, string> = {
-        order: 'Order',
+        order: 'Link',
         pinpad: 'Pinpad',
         pos: 'POS',
     };
@@ -32,8 +34,6 @@ export default function TransactionsPage() {
     return (
 
         <Box sx={{
-
-
             maxWidth: '100%',
             width: '100%',
             boxSizing: 'border-box',
@@ -47,7 +47,7 @@ export default function TransactionsPage() {
             sx={{
                 borderRadius: 2,
                 padding: 3,
-                maxWidth: 1000,
+                maxWidth: 1200,
                 width: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -95,16 +95,23 @@ export default function TransactionsPage() {
 
                 <Button
                     variant="contained"
-                    disableElevation
                     sx={{
-                        width: '200px',
-                        height: '40px',
-                        backgroundColor: '#004e93',
-                        color: 'white',
-                        borderRadius: '30px',
-
-                        fontWeight: 'bold',
-
+                        flex: 1,
+                        backgroundColor:'#0071EB',
+                        color: '#FFF',
+                        fontWeight: 700,
+                        fontSize: '16px',
+                        textTransform: 'none',
+                        borderRadius: '16px',
+                        minWidth: '150px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        paddingY: '10px',
+                        '&:hover': {
+                            backgroundColor:'#0071EB',
+                        },
                     }}
                     onClick={handleCalculate}
                     disabled={errorValue || value.trim() === ''}
@@ -116,33 +123,49 @@ export default function TransactionsPage() {
 
             {/* Métodos de pagamento */}
             {PaymentMethods && (
-                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        backgroundColor: '#DDE2E7',
+                        borderRadius: '20px',
+                        padding: '8px',
+                        gap: 1,
+                        width: '50%',
+                        maxWidth: '500px',
+                        minWidth: '300px',
+                        justifyContent: 'space-between',
+                    }}
+                >
                     {['order', 'pinpad', 'pos'].map((method) => {
                         const isActive = selectedProduct === method;
+                        const label = methodLabels[method];
+                        const Icon = method === 'order' ? Link : method === 'pinpad' ? Store : CreditCard;
+
                         return (
                             <Button
                                 key={method}
-                                variant="contained"
-                                disableElevation
+                                onClick={() => setSelectedProduct(method)}
+                                disableRipple
                                 sx={{
-                                    width: '190px',
-                                    height: '40px',
-                                    backgroundColor: isActive ? '#004e93' : '#0056a6',
-                                    color: 'white',
-                                    borderRadius: '30px',
-                                    textTransform: 'uppercase',
-                                    fontWeight: 'bold',
-                                    borderBottom: isActive ? '3px solid #fff' : '3px solid transparent',
-                                    boxShadow: isActive ? 'inset 0 -3px 0 #fff' : undefined,
+                                    flex: 1,
+                                    backgroundColor: isActive ? '#0071EB' : 'transparent',
+                                    color: isActive ? '#FFF' : '#1C1C1C',
+                                    fontWeight: 700,
+                                    fontSize: '16px',
+                                    textTransform: 'none',
+                                    borderRadius: '16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 1,
+                                    paddingY: '10px',
                                     '&:hover': {
-                                        backgroundColor: '#0056a6',
+                                        backgroundColor: isActive ? '#0071EB' : '#DDE2E7',
                                     },
                                 }}
-                                onClick={() => {
-                                    setSelectedProduct(method);
-                                }}
                             >
-                                {methodLabels[method]}
+                                <Icon size={18} />
+                                {label}
                             </Button>
                         );
                     })}

@@ -544,6 +544,13 @@ export default function Index() {
                                 color="primary"
                                 variant="contained"
                                 onClick={handleSave}
+                                sx={{
+                                    borderRadius: '30px',
+                                    textTransform: 'uppercase',
+                                    fontWeight: 'bold',
+                                    backgroundColor: '#004e93',
+                                    '&:hover': { backgroundColor: '#0056a6' },
+                                }}
                             >
                                 Salvar
                             </Button>

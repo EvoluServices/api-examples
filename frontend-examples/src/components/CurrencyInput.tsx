@@ -46,19 +46,13 @@ export default function CurrencyInput({ value, onChange, error, helperText }: Pr
             error={error}
             helperText={error ? helperText : ''}
             variant="outlined"
-            size="small"
             sx={{
-                width: '200px',
-                backgroundColor: '#fff',
-                borderRadius: '30px',
+                minWidth: '330px',
+                backgroundColor: "#fff",
+                borderRadius: 3,
                 '& .MuiOutlinedInput-root': {
-                    height: '40px',
-                    borderRadius: '30px',
-                    paddingX: 2,
-                },
-                '& input': {
-                    paddingY: 0,
-                },
+                    borderRadius: 3,
+                }
             }}
         />
     );
