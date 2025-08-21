@@ -1,13 +1,17 @@
 import {Box, Typography, Paper, Grid, Button} from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { formatDocument } from "@/utils/formatDocument";
+import {formatCurrency} from "@/utils/formatCurrency";
 
 type SuccessResultProps = {
     customerName: string;
+    customerDocument: string;
     amount: number;
     installments: string;
+    payment: number;
 };
 
-export default function SuccessResult({ customerName, amount, installments }: SuccessResultProps) {
+export default function SuccessResult({ customerName, customerDocument, amount, installments, payment }: SuccessResultProps) {
     return (
         <Box
             sx={{
@@ -56,7 +60,7 @@ export default function SuccessResult({ customerName, amount, installments }: Su
                                 Documento:
                             </Typography>
                             <Typography variant="body1" sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}>
-                                01234567890
+                                {formatDocument(customerDocument)}
                             </Typography>
                         </Grid>
 
@@ -76,8 +80,8 @@ export default function SuccessResult({ customerName, amount, installments }: Su
                             <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e'}}>
                                 Recebimento:
                             </Typography>
-                            <Typography variant="body1" sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}>
-                                R$ 90,00
+                            <Typography variant="body1" sx={{ fontWeight: '700', color: '#00af6c', textTransform: 'capitalize' }}>
+                                {formatCurrency(payment)}
                             </Typography>
                         </Grid>
 

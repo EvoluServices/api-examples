@@ -43,6 +43,7 @@ export default function Order() {
   const showInstallments = showBrand && !!cardBrand;
   const showCustomerFields = showInstallments && !!installments;
   const creditBrands = brands.filter((b) => b.type === 'credit');
+  const [payment, setPayment] = useState<number>(0);
 
   const [orderResult, setOrderResult] = useState<{
     payUrl: string;
@@ -86,6 +87,22 @@ export default function Order() {
   const [orderStatus, setOrderStatus] = useState<string>('PENDING'); // status inicial
   const [elapsedTime, setElapsedTime] = useState<number>(0);
 
+  function sumPayments(orderData: any): number {
+    if (!orderData?.transactionList) return 0;
+
+    const cents = orderData.transactionList.reduce((totalCents: number, transaction: any) => {
+      const pCents = (transaction.payments || []).reduce((acc: number, p: any) => {
+        const v = typeof p.amount === 'string' ? p.amount.replace(',', '.') : String(p.amount);
+        return acc + Math.round(parseFloat(v) * 100);
+      }, 0);
+      return totalCents + pCents;
+    }, 0);
+
+    return cents / 100;
+  }
+
+
+
   useEffect(() => {
     if (!orderResult?.uuid || orderStatus === 'APPROVED') return;
 
@@ -93,6 +110,11 @@ export default function Order() {
       try {
         const data = await fetchOrderStatus(orderResult.uuid);
         const status = data.status;
+        const totalPayments = sumPayments(data);
+        console.log("Total de pagamentos:", totalPayments);
+
+        setPayment(totalPayments);
+
 
         if (status === 'APPROVED') {
           setOrderStatus('APPROVED');
@@ -311,8 +333,10 @@ export default function Order() {
                     return (
                         <SuccessResult
                             customerName={customerName}
+                            customerDocument={customerDocument}
                             amount={amountFloat}
                             installments={installments}
+                            payment={payment}
                         />
                     );
 
@@ -369,7 +393,6 @@ export default function Order() {
               })()}
             </Box>
         )}
-
 
         {/* Snackbar */}
         <Snackbar
