@@ -33,7 +33,7 @@ const Navbar = ({ pages }: NavbarProps) => {
                                     sx={{
                                         color: '#FFF',
                                         fontSize: '16px',
-                                        fontWeight: isActive(page.href) ? 700 : 400,
+                                        fontWeight: 700,
                                     }}
                                 >
                                     {page.name}

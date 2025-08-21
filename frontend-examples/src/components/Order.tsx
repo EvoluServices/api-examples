@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import {
   Box,
   FormControl,
@@ -17,6 +17,9 @@ import axios from 'axios';
 
 import { useTransaction } from '@/contexts/TransactionContext';
 import { brands } from './Brand';
+import SuccessResult from "@/components/SuccessResult";
+import RejectedResult from "@/components/RejectedResult";
+import GenericErrorResult from "@/components/GenericErrorResult";
 
 export default function Order() {
   const {
@@ -41,17 +44,74 @@ export default function Order() {
   const showCustomerFields = showInstallments && !!installments;
   const creditBrands = brands.filter((b) => b.type === 'credit');
 
-  const [orderResult, setOrderResult] = useState<{ payUrl: string, uuid: string } | null>(null);
+  const [orderResult, setOrderResult] = useState<{
+    payUrl: string;
+    uuid: string;
+    customerName?: string;
+    amount?: string;
+    installments?: string;
+  } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-
   const [snackbar, setSnackbar] = useState({
     open: false,
     severity: 'error', // 'success' | 'info' | 'warning'
     title: '',
     description: '',
   })
+
+  const fetchOrderStatus = async (uuid: string) => {
+    const configCookie = Cookies.get('api-examples-config');
+    if (!configCookie) {
+      throw new Error('Configuração de autenticação não encontrada.');
+    }
+
+    const parsedConfig = JSON.parse(configCookie);
+    const { url, values } = parsedConfig;
+    const credentials = btoa(`${values.apiKey}:${values.apiSecret}`);
+
+    const response = await axios.get(`${url}/api/orders/${uuid}`, {
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log("Resposta da API de status da transação:", response.data);
+
+    return response.data;
+  };
+
+  const [orderStatus, setOrderStatus] = useState<string>('PENDING'); // status inicial
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+
+  useEffect(() => {
+    if (!orderResult?.uuid || orderStatus === 'APPROVED') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchOrderStatus(orderResult.uuid);
+        const status = data.status;
+
+        if (status === 'APPROVED') {
+          setOrderStatus('APPROVED');
+          clearInterval(interval);
+        } else {
+          setElapsedTime(prev => {
+            const newTime = prev + 30;
+            if (newTime >= 300) clearInterval(interval);
+            return newTime;
+          });
+        }
+      } catch (err) {
+        console.error('Erro ao verificar status da transação:', err);
+      }
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [orderResult?.uuid, elapsedTime, orderStatus]);
+
 
   const handleSubmit = async () => {
     try {
@@ -95,8 +155,14 @@ export default function Order() {
           }
       );
 
-      const { payUrl, uuid } = response.data;
-      setOrderResult({ payUrl, uuid });
+      const { payUrl, uuid,  } = response.data;
+      setOrderResult({
+        payUrl,
+        uuid,
+        customerName,
+        amount: amountFloat.toFixed(2),
+        installments,
+      });
       setModalOpen(true);
 
     } catch (error) {
@@ -117,7 +183,7 @@ export default function Order() {
         {/* Coluna da esquerda: campos do pedido */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 2 }}>
+          <Box sx={{display: 'flex', flexDirection: 'row', gap: 2 }}>
             {/* Card Brand */}
             {showBrand && (
                 <Box sx={{ width: '50%', minWidth: 200 }}>
@@ -238,32 +304,72 @@ export default function Order() {
 
         {/* Coluna da direita: resultado */}
         {orderResult && (
-            <Box
-                sx={{
-                  flex: 1,
-                  backgroundColor: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '12px',
-                  padding: 3,
-                  boxShadow: 1,
-                  height: 'fit-content',
-                  alignSelf: 'flex-start',
-                }}
-            >
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Venda Criada com Sucesso
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>UUID:</strong> {orderResult.uuid}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Link de Pagamento:</strong>{' '}
-                <a href={orderResult.payUrl} target="_blank" rel="noopener noreferrer">
-                  {orderResult.payUrl}
-                </a>
-              </Typography>
+            <Box sx={{ ml: 20, height: 'fit-content', alignSelf: 'flex-start' }}>
+              {(() => {
+                switch (orderStatus) {
+                  case 'APPROVED':
+                    return (
+                        <SuccessResult
+                            customerName={customerName}
+                            amount={amountFloat}
+                            installments={installments}
+                        />
+                    );
+
+                  case 'DISAPPROVED':
+                    return (
+                        <RejectedResult/>
+                    );
+
+                  case 'PENDING':
+                  case 'ABORTED': // ABORTED segue o mesmo fluxo visual de pagamento pendente
+                    return (
+                        <>
+                          <Typography variant="h5" sx={{ color: '#204986', fontWeight: 700 }} gutterBottom>
+                            Venda Criada com Sucesso
+                          </Typography>
+
+                          <Typography
+                              variant="body2"
+                              sx={{ color: '#5a646e', lineHeight: '24px', fontWeight: 700, mb: 2 }}
+                              gutterBottom
+                          >
+                            Para realizar o pagamento, disponibilize o link abaixo ao cliente:
+                          </Typography>
+
+                          {orderResult.payUrl && (
+                              <Button
+                                  variant="contained"
+                                  color="primary"
+                                  href={orderResult.payUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  sx={{
+                                    backgroundColor: '#0071EB',
+                                    color: '#FFF',
+                                    fontWeight: 700,
+                                    fontSize: '16px',
+                                    textTransform: 'none',
+                                    borderRadius: '16px',
+                                    py: '10px',
+                                    '&:hover': { backgroundColor: '#0071EB' },
+                                  }}
+                              >
+                                Acessar Link de Pagamento
+                              </Button>
+                          )}
+                        </>
+                    );
+
+                  default:
+                    return (
+                        <GenericErrorResult/>
+                    );
+                }
+              })()}
             </Box>
         )}
+
 
         {/* Snackbar */}
         <Snackbar
