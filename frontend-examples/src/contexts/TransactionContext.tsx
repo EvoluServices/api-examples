@@ -19,6 +19,7 @@ interface TransactionContextProps {
     customerEmail: string;
     setCustomerEmail: (v: string) => void;
     clearCustomerData: () => void;
+    resetTransaction: () => void;
 }
 
 const TransactionContext = createContext({} as TransactionContextProps);
@@ -42,6 +43,14 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         setCustomerEmail('');
     };
 
+    const resetTransaction = () => {
+        setAmount('');
+        setPaymentType('');
+        setCardBrand('');
+        setInstallments('');
+        clearCustomerData();
+    };
+
     return (
         <TransactionContext.Provider
             value={{
@@ -62,6 +71,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
                 customerEmail,
                 setCustomerEmail,
                 clearCustomerData,
+                resetTransaction
             }}
         >
             {children}

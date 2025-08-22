@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Box, Grid, Typography, Button, IconButton,Snackbar, Alert, TextField, Radio, Collapse} from "@mui/material";
 import { Stack } from "@mui/system";
 import CodeIcon from "@mui/icons-material/Code";
@@ -26,6 +26,36 @@ export default function Index() {
     const MerchantProdKeyToggleOpen = () => setMerchantProdKeyOpen((prev) => !prev);
 
     const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'prod' | null>(null);
+
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+    const COOKIE_ENV_KEY = 'api-examples-selected-env';               // 'dev' | 'prod'
+    const COOKIE_CFG_KEY = (env: 'dev' | 'prod') => `api-examples-config-${env}`;
+
+    function readConfigFromCookie(env: 'dev' | 'prod') {
+        const raw = Cookies.get(COOKIE_CFG_KEY(env));
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function applyFromCookie(env: 'dev' | 'prod') {
+        const cfg = readConfigFromCookie(env);
+        if (!cfg) return;
+
+        if (env === 'dev') {
+            setDevValues(cfg.values);
+        } else {
+            setProdValues(cfg.values);
+        }
+    }
+
+    useEffect(() => {
+        const lastEnv = Cookies.get(COOKIE_ENV_KEY) as 'dev' | 'prod' | undefined;
+        if (lastEnv) {
+            setSelectedEnvironment(lastEnv);
+            applyFromCookie(lastEnv);
+        }
+    }, []);
 
 
     const [devValues, setDevValues] = useState({
@@ -98,17 +128,30 @@ export default function Index() {
         }
 
         const environmentUrl =
-            selectedEnvironment === "dev"
-                ? "https://sandbox.evoluservices.com"
-                : "https://api.evoluservices.com";
+            selectedEnvironment === 'dev'
+                ? 'https://sandbox.evoluservices.com'
+                : 'https://api.evoluservices.com';
 
         const config = {
-            environment: selectedEnvironment,
             url: environmentUrl,
-            values,
+            values, // { apiKey, apiSecret, merchantName, merchantKey }
         };
 
-        Cookies.set('api-examples-config', JSON.stringify(config));
+        Cookies.set(COOKIE_CFG_KEY(selectedEnvironment), JSON.stringify(config), {
+            expires: 7,
+            sameSite: 'Lax',
+            secure: isHttps,
+            path: '/',
+        });
+
+        Cookies.set(COOKIE_ENV_KEY, selectedEnvironment, {
+            expires: 7,
+            sameSite: 'Lax',
+            secure: isHttps,
+            path: '/',
+        });
+
+        applyFromCookie(selectedEnvironment);
 
         setSnackbarMessage("Configurações salvas com sucesso.");
         setSnackbarSeverity("success");
@@ -184,7 +227,10 @@ export default function Index() {
                                         position: "relative",
                                         width: "100%",
                                     }}
-                                    onClick={() => setSelectedEnvironment('dev')}
+                                    onClick={() => {
+                                        setSelectedEnvironment('dev');
+                                        applyFromCookie('dev');
+                                    }}
                                 >
                                     <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
                                         <Stack direction="row" alignItems="center" gap={1} flexGrow={1}>
@@ -364,7 +410,10 @@ export default function Index() {
                                         position: "relative",
                                         width: "100%",
                                     }}
-                                    onClick={() => setSelectedEnvironment('prod')}
+                                    onClick={() => {
+                                        setSelectedEnvironment('prod');
+                                        applyFromCookie('prod');
+                                    }}
                                 >
                                     <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
                                         <Stack direction="row" alignItems="center" gap={1} flexGrow={1}>

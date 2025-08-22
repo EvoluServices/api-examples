@@ -16,7 +16,17 @@ export default function TransactionsPage() {
     const [PaymentMethods, setPaymentMethods] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
-    const { setAmount } = useTransaction();
+    const { setAmount, resetTransaction } = useTransaction();
+
+    const resetSaleUI = () => {
+        resetTransaction();
+        setValue('');
+        setRawValue(0);
+        setErrorValue(false);
+        setErrorMessage('');
+        setPaymentMethods(false);
+        setSelectedProduct(null);
+    };
 
     const methodLabels: Record<string, string> = {
         order: 'Link',
@@ -173,11 +183,11 @@ export default function TransactionsPage() {
             )}
 
             {selectedProduct === 'order' && (
-                <Order/>
+                <Order onConclude={resetSaleUI} />
             )}
 
             {selectedProduct === 'pinpad' && (
-                <Pinpad/>
+                <Pinpad />
             )}
 
             {selectedProduct === 'pos' && (

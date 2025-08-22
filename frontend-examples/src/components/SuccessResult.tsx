@@ -9,9 +9,10 @@ type SuccessResultProps = {
     amount: number;
     installments: string;
     payment: number;
+    onConclude?: () => void;
 };
 
-export default function SuccessResult({ customerName, customerDocument, amount, installments, payment }: SuccessResultProps) {
+export default function SuccessResult({ customerName, customerDocument, amount, installments, payment, onConclude }: SuccessResultProps) {
     return (
         <Box
             sx={{
@@ -116,6 +117,7 @@ export default function SuccessResult({ customerName, customerDocument, amount, 
                                     px: 4,
                                     py: 1.5,
                                 }}
+                                onClick={onConclude}
                             >
                                 Concluir
                             </Button>
