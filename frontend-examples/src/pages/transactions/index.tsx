@@ -108,7 +108,7 @@ export default function TransactionsPage() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 1,
-                        paddingY: '10px',
+                        paddingY: '15px',
                         '&:hover': {
                             backgroundColor:'#0071EB',
                         },
@@ -154,7 +154,7 @@ export default function TransactionsPage() {
                                     fontSize: '16px',
                                     textTransform: 'none',
                                     borderRadius: '16px',
-                                    display: 'flex',
+                                    display: '',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: 1,
