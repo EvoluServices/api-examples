@@ -27,6 +27,7 @@ import GenericErrorResult from "@/components/GenericErrorResult";
 import { getApiConfigFromCookies, buildBasicAuthHeader } from '@/utils/cookies';
 import { maskCpfCnpj, onlyDigits, isCpfCnpjLenValid } from '@/utils/document';
 import { isNameValid } from '@/utils/nameValidation';
+import { parseApiError } from '@/utils/httpErrors';
 
 export default function Order({ onConclude }: OrderProps) {
   const {
@@ -171,28 +172,32 @@ export default function Order({ onConclude }: OrderProps) {
         },
       };
 
-      const { data } = await axios.post(`${cfg.url}/api/orders`, payload, { headers });
+      // no handleSubmit
+      const res = await axios.post(
+          `${cfg.url}/api/orders`,
+          payload,
+          { headers, validateStatus: () => true }   // <= não lança em 4xx/5xx
+      );
 
-      const { payUrl, uuid } = data;
-      setOrderResult({
-        payUrl,
-        uuid,
-        customerName,
-        customerDocument,
-        amount: amountFloat.toFixed(2),
-        installments,
-      });
+      if (res.status >= 400) {
+        const ui = parseApiError({ response: res } as any);
+        setSnackbar({ open: true, severity: 'error', title: ui.title, description: ui.description });
+        return; // interrompe o fluxo
+      }
+
+      const { payUrl, uuid } = res.data;
+      setOrderResult({ payUrl, uuid, customerName, customerDocument, amount: amountFloat.toFixed(2), installments });
+      setModalOpen(true);
+
 
       setModalOpen(true);
-    } catch (error: any) {
-      console.error('Erro ao criar pedido:', error);
-      setSnackbar({
-        open: true,
-        severity: 'error',
-        title: 'Erro ao criar pedido',
-        description: error?.response?.data?.message || 'Verifique os dados ou tente novamente.',
-      });
+    } catch (error) {
+      // console.error('Erro ao criar pedido:', error); // remova
+      console.warn('Erro ao criar pedido:', error);     // opcional
+      const ui = parseApiError(error);
+      setSnackbar({ open: true, severity: 'error', title: ui.title, description: ui.description });
     }
+
   };
 
   return (
@@ -427,7 +432,9 @@ export default function Order({ onConclude }: OrderProps) {
             <Typography variant="subtitle1" fontWeight="bold">
               {snackbar.title}
             </Typography>
-            <Typography variant="body2">{snackbar.description}</Typography>
+            <Typography
+                sx={{ whiteSpace: 'pre-line' }}
+                variant="body2">{snackbar.description}</Typography>
           </Alert>
         </Snackbar>
       </Box>
