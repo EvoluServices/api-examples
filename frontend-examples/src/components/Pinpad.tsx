@@ -187,11 +187,7 @@ export default function Pinpad() {
             onChange={(e) => setCustomerDocument(maskDocument(e.target.value))}
             onBlur={() => setTouchedDocument(true)}
             error={touchedDocument && !regexDocument.test(customerDocument.replace(/\D/g, ''))}
-            helperText={
-              touchedDocument && !regexDocument.test(customerDocument.replace(/\D/g, ''))
-                ? 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos)'
-                : ''
-            }
+            helperText={null}
           />
 
           <TextField
@@ -201,11 +197,7 @@ export default function Pinpad() {
             onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
             onBlur={() => setTouchedPhone(true)}
             error={touchedPhone && !regexPhone.test(customerPhone.replace(/\D/g, ''))}
-            helperText={
-              touchedPhone && !regexPhone.test(customerPhone.replace(/\D/g, ''))
-                ? 'Telefone deve ter 11 dígitos (DDD + 9 + número)'
-                : ''
-            }
+            helperText={null}
           />
 
           <TextField
@@ -215,7 +207,7 @@ export default function Pinpad() {
             onChange={(e) => setCustomerEmail(e.target.value)}
             onBlur={() => setTouchedEmail(true)}
             error={touchedEmail && !regexEmail.test(customerEmail)}
-            helperText={touchedEmail && !regexEmail.test(customerEmail) ? 'Informe um e-mail válido' : ''}
+            helperText={null}
           />
         </Box>
       )}
