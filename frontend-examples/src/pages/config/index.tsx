@@ -25,6 +25,12 @@ export default function Index() {
     const [merchantProdKeyOpen, setMerchantProdKeyOpen] = useState(false);
     const MerchantProdKeyToggleOpen = () => setMerchantProdKeyOpen((prev) => !prev);
 
+    const [callbackDevKeyOpen, setCallbackDevKeyOpen] = useState(false);
+    const callbackDevKeyToggleOpen = () => setCallbackDevKeyOpen((prev) => !prev);
+
+    const [callbackProdKeyOpen, setCallbackProdKeyOpen] = useState(false);
+    const callbackProdKeyToggleOpen = () => setCallbackProdKeyOpen((prev) => !prev);
+
     const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'prod' | null>(null);
 
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -63,6 +69,7 @@ export default function Index() {
         apiSecret: '',
         merchantName: '',
         merchantKey: '',
+        callback: '',
     });
 
     const [prodValues, setProdValues] = useState({
@@ -70,6 +77,7 @@ export default function Index() {
         apiSecret: '',
         merchantName: '',
         merchantKey: '',
+        callback: '',
     });
 
     const [devErrors, setDevErrors] = useState({
@@ -77,6 +85,7 @@ export default function Index() {
         apiSecret: false,
         merchantName: false,
         merchantKey: false,
+        callback: false,
     });
 
     const [prodErrors, setProdErrors] = useState({
@@ -84,6 +93,7 @@ export default function Index() {
         apiSecret: false,
         merchantName: false,
         merchantKey: false,
+        callback: false,
     });
 
     const handleInputChange = (
@@ -114,6 +124,7 @@ export default function Index() {
             apiSecret: values.apiSecret.trim() === '',
             merchantName: values.merchantName.trim() === '',
             merchantKey: values.merchantKey.trim() === '',
+            callback: false,
         };
 
         setErrors(newErrors);
@@ -166,7 +177,6 @@ export default function Index() {
                 width: "100%",
                 maxWidth: "1000px",
                 margin: "0 auto",
-                padding: "0 24px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -203,7 +213,7 @@ export default function Index() {
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
-                        padding: "20px",
+                        pt: 2,
                         gap: "20px",
                     }}
                 >
@@ -381,7 +391,6 @@ export default function Index() {
                                             <TextField
                                                 label="Chave de Integração do Estabelecimento"
                                                 variant="outlined"
-                                                type="password"
                                                 fullWidth
                                                 value={devValues.merchantKey}
                                                 onChange={(e) => handleInputChange('dev', 'merchantKey', e.target.value)}
@@ -395,6 +404,67 @@ export default function Index() {
                                                 }}
                                             />
                                         </Box>
+
+                                </Box>
+
+                                <Box mt={2}>
+                                    <Box display="flex" alignItems="center" onClick={callbackDevKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                        <Typography
+                                            sx={{
+                                                fontWeight: 700,
+                                                fontSize: "16px",
+                                                lineHeight: "24px",
+                                                color: "#204986",
+                                            }}
+                                        >
+                                            URL de Callback para POS / Pinpad
+                                        </Typography>
+                                        <IconButton size="small" sx={{ ml: 1 }}>
+                                            {callbackDevKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        </IconButton>
+                                    </Box>
+
+                                    <Collapse in={callbackDevKeyOpen} timeout="auto" unmountOnExit>
+
+                                        <Typography
+                                            sx={{
+                                                fontWeight: 700,
+                                                fontSize: "14px",
+                                                lineHeight: "20px",
+                                                color: "#5a646e",
+                                                mb: 2,
+                                            }}
+                                        >
+                                            A URL de callback é essencial para integrações com dispositivos POS e Pinpad.
+                                            Ela permite que o sistema receba notificações automáticas sobre o status das transações realizadas,
+                                            como aprovações, recusas, e outras atualizações relevantes. Além disso, por meio desse retorno assíncrono,
+                                            é possível obter as datas e valores previstos de repasse, garantindo maior controle
+                                            e visibilidade sobre o fluxo financeiro.
+                                        </Typography>
+
+                                    </Collapse>
+
+                                    <Box
+                                        display="flex"
+                                        flexDirection="column"
+                                        rowGap={2}
+                                    >
+                                        <TextField
+                                            label="url de callback"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={devValues.callback}
+                                            onChange={(e) => handleInputChange('dev', 'callback', e.target.value)}
+                                            error={devErrors.callback}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 3,
+                                                }
+                                            }}
+                                        />
+                                    </Box>
 
                                 </Box>
 
@@ -561,7 +631,6 @@ export default function Index() {
                                             <TextField
                                                 label="Chave de Integração do Estabelecimento"
                                                 variant="outlined"
-                                                type="password"
                                                 fullWidth
                                                 value={prodValues.merchantKey}
                                                 onChange={(e) => handleInputChange('prod', 'merchantKey', e.target.value)}
@@ -575,6 +644,67 @@ export default function Index() {
                                                 }}
                                             />
                                         </Box>
+
+                                </Box>
+
+                                <Box mt={2}>
+                                    <Box display="flex" alignItems="center" onClick={callbackProdKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                        <Typography
+                                            sx={{
+                                                fontWeight: 700,
+                                                fontSize: "16px",
+                                                lineHeight: "24px",
+                                                color: "#204986",
+                                            }}
+                                        >
+                                            URL de Callback para POS / Pinpad
+                                        </Typography>
+                                        <IconButton size="small" sx={{ ml: 1 }}>
+                                            {callbackProdKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        </IconButton>
+                                    </Box>
+
+                                    <Collapse in={callbackProdKeyOpen} timeout="auto" unmountOnExit>
+
+                                        <Typography
+                                            sx={{
+                                                fontWeight: 700,
+                                                fontSize: "14px",
+                                                lineHeight: "20px",
+                                                color: "#5a646e",
+                                                mb: 2,
+                                            }}
+                                        >
+                                            A URL de callback é essencial para integrações com dispositivos POS e Pinpad.
+                                            Ela permite que o sistema receba notificações automáticas sobre o status das transações realizadas,
+                                            como aprovações, recusas, e outras atualizações relevantes. Além disso, por meio desse retorno assíncrono,
+                                            é possível obter as datas e valores previstos de repasse, garantindo maior controle
+                                            e visibilidade sobre o fluxo financeiro.
+                                        </Typography>
+
+                                    </Collapse>
+
+                                    <Box
+                                        display="flex"
+                                        flexDirection="column"
+                                        rowGap={2}
+                                    >
+                                        <TextField
+                                            label="url de callback"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={prodValues.callback}
+                                            onChange={(e) => handleInputChange('prod', 'callback', e.target.value)}
+                                            error={prodErrors.callback}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 3,
+                                                }
+                                            }}
+                                        />
+                                    </Box>
 
                                 </Box>
                             </Grid>
@@ -594,11 +724,14 @@ export default function Index() {
                                 variant="contained"
                                 onClick={handleSave}
                                 sx={{
-                                    borderRadius: '30px',
-                                    textTransform: 'uppercase',
-                                    fontWeight: 'bold',
-                                    backgroundColor: '#004e93',
-                                    '&:hover': { backgroundColor: '#0056a6' },
+                                    backgroundColor: '#0071EB',
+                                    color: '#FFF',
+                                    fontWeight: 700,
+                                    fontSize: '16px',
+                                    textTransform: 'none',
+                                    borderRadius: '16px',
+                                    py: '10px',
+                                    '&:hover': {backgroundColor: '#0071EB'},
                                 }}
                             >
                                 Salvar

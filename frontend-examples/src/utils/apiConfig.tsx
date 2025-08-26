@@ -2,17 +2,18 @@ import Cookies from 'js-cookie';
 
 type Env = 'dev' | 'prod';
 
-const COOKIE_ENV_KEY = 'api-examples-selected-env'; // 'dev' | 'prod'
-const COOKIE_CFG_KEY = (env: Env) => `api-examples-config-${env}`;
-const COOKIE_LEGACY  = 'api-examples-config';
+export const COOKIE_ENV_KEY = 'api-examples-selected-env'; // 'dev' | 'prod'
+export const COOKIE_CFG_KEY = (env: Env) => `api-examples-config-${env}`;
+export const COOKIE_LEGACY  = 'api-examples-config';
 
-type ApiConfig = {
+export type ApiConfig = {
     url: string;
     values: {
         apiKey: string;
         apiSecret: string;
         merchantName?: string;
         merchantKey?: string;
+        callback?: string;
     };
     environment?: Env;
 };

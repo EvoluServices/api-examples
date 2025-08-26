@@ -14,10 +14,10 @@ interface TransactionContextProps {
     setCustomerName: (v: string) => void;
     customerDocument: string;
     setCustomerDocument: (v: string) => void;
-    customerPhone: string;
-    setCustomerPhone: (v: string) => void;
     customerEmail: string;
     setCustomerEmail: (v: string) => void;
+    callback: string;
+    setCallback: (v: string) => void;
     clearCustomerData: () => void;
     resetTransaction: () => void;
 }
@@ -33,13 +33,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     const [installments, setInstallments] = useState('');
     const [customerName, setCustomerName] = useState('');
     const [customerDocument, setCustomerDocument] = useState('');
-    const [customerPhone, setCustomerPhone] = useState('');
     const [customerEmail, setCustomerEmail] = useState('');
+    const [callback, setCallback] = useState('');
 
     const clearCustomerData = () => {
         setCustomerName('');
         setCustomerDocument('');
-        setCustomerPhone('');
         setCustomerEmail('');
     };
 
@@ -66,10 +65,10 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
                 setCustomerName,
                 customerDocument,
                 setCustomerDocument,
-                customerPhone,
-                setCustomerPhone,
                 customerEmail,
                 setCustomerEmail,
+                callback,
+                setCallback,
                 clearCustomerData,
                 resetTransaction
             }}
