@@ -1,7 +1,7 @@
 import { Box, Typography, Paper, Grid, Button } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
-export default function GenericErrorResult() {
+export default function OrderGenericErrorResult() {
     return (
         <Box
             sx={{

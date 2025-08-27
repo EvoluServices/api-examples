@@ -21,9 +21,9 @@ type OrderProps = {
 import axios from 'axios';
 import {useTransaction} from '@/contexts/TransactionContext';
 import {brands} from './Brand';
-import SuccessResult from "@/components/SuccessResult";
-import RejectedResult from "@/components/RejectedResult";
-import GenericErrorResult from "@/components/GenericErrorResult";
+import OrderSuccessResult from "@/components/OrderSuccessResult";
+import OrderRejectedResult from "@/components/OrderRejectedResult";
+import OrderGenericErrorResult from "@/components/OrderGenericErrorResult";
 import {getApiConfigFromCookies, buildBasicAuthHeader} from '@/utils/apiConfig';
 import {maskCpfCnpj, onlyDigits, isCpfCnpjLenValid} from '@/utils/document';
 import {isNameValid} from '@/utils/nameValidation';
@@ -375,7 +375,7 @@ export default function Order({onConclude}: OrderProps) {
                         switch (orderStatus) {
                             case 'APPROVED':
                                 return (
-                                    <SuccessResult
+                                    <OrderSuccessResult
                                         customerName={customerName}
                                         customerDocument={customerDocument}
                                         amount={amountFloat}
@@ -387,7 +387,7 @@ export default function Order({onConclude}: OrderProps) {
 
                             case 'DISAPPROVED':
                                 return (
-                                    <RejectedResult/>
+                                    <OrderRejectedResult/>
                                 );
 
                             case 'PENDING':
@@ -432,7 +432,7 @@ export default function Order({onConclude}: OrderProps) {
 
                             default:
                                 return (
-                                    <GenericErrorResult/>
+                                    <OrderGenericErrorResult/>
                                 );
                         }
                     })()}

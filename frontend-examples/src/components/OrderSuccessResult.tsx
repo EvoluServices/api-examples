@@ -12,7 +12,7 @@ type SuccessResultProps = {
     onConclude?: () => void;
 };
 
-export default function SuccessResult({ customerName, customerDocument, amount, installments, payment, onConclude }: SuccessResultProps) {
+export default function OrderSuccessResult({ customerName, customerDocument, amount, installments, payment, onConclude }: SuccessResultProps) {
     return (
         <Box
             sx={{
