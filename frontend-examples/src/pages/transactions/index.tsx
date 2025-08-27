@@ -15,7 +15,7 @@ export default function TransactionsPage() {
     const [PaymentMethods, setPaymentMethods] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
-    const {setAmount, resetTransaction} = useTransaction();
+    const {setAmount, resetTransaction, customResetTransaction} = useTransaction();
 
     const resetSaleUI = () => {
         resetTransaction();
@@ -39,6 +39,16 @@ export default function TransactionsPage() {
             setPaymentMethods(true);
         }
     };
+
+    useEffect(() => {
+        if (selectedProduct !== null) {
+            customResetTransaction();
+            setRawValue(0);
+            setErrorValue(false);
+            setErrorMessage('');
+            setPaymentMethods(true);
+        }
+    }, [selectedProduct]);
 
     return (
 
@@ -90,16 +100,22 @@ export default function TransactionsPage() {
                         onChange={(formatted, raw) => {
                             setValue(formatted);
                             setRawValue(raw);
-                            if (raw <= 0) {
-                                setErrorValue(true);
-                                setErrorMessage('Informe um valor válido');
-                            } else {
+
+                            if (!formatted || raw <= 0) {
+                                setPaymentMethods(false);
+                                customResetTransaction();
                                 setErrorValue(false);
                                 setErrorMessage('');
+                                setSelectedProduct(null);
+
+                                return;
                             }
+
+                            // ✅ Valor válido
+                            setErrorValue(false);
+                            setErrorMessage('');
                         }}
                         error={errorValue}
-                        helperText={errorMessage}
                     />
 
                     <Button
@@ -123,7 +139,7 @@ export default function TransactionsPage() {
                             },
                         }}
                         onClick={handleCalculate}
-                        disabled={errorValue || value.trim() === ''}
+                        disabled={!rawValue || rawValue <= 0}
                     >
                         Calcular
                     </Button>

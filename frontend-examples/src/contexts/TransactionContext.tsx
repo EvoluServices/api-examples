@@ -20,6 +20,7 @@ interface TransactionContextProps {
     setCallback: (v: string) => void;
     clearCustomerData: () => void;
     resetTransaction: () => void;
+    customResetTransaction: () => void;
 }
 
 const TransactionContext = createContext({} as TransactionContextProps);
@@ -50,6 +51,13 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         clearCustomerData();
     };
 
+    const customResetTransaction = () => {
+        setPaymentType('');
+        setCardBrand('');
+        setInstallments('');
+        clearCustomerData();
+    };
+
     return (
         <TransactionContext.Provider
             value={{
@@ -70,7 +78,8 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
                 callback,
                 setCallback,
                 clearCustomerData,
-                resetTransaction
+                resetTransaction,
+                customResetTransaction
             }}
         >
             {children}

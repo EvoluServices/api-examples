@@ -4,13 +4,16 @@ type Props = {
     value: string;
     onChange: (formatted: string, raw: number) => void;
     error?: boolean;
-    helperText?: string;
 };
 
-export default function CurrencyInput({ value, onChange, error, helperText }: Props) {
+export default function CurrencyInput({ value, onChange, error }: Props) {
     const formatCurrency = (raw: string): string => {
         const digits = raw.replace(/\D/g, '');
         const number = parseFloat(digits) / 100;
+
+        // Se vazio ou inválido, retorna string vazia
+        if (isNaN(number)) return '';
+
         return number.toLocaleString('pt-BR', {
             style: 'currency',
             currency: 'BRL',
@@ -19,18 +22,28 @@ export default function CurrencyInput({ value, onChange, error, helperText }: Pr
     };
 
     const parseCurrency = (valor: string): number => {
-        return parseFloat(
+        if (!valor) return 0;
+
+        const parsed = parseFloat(
             valor
                 .replace(/\s/g, '')
                 .replace('R$', '')
                 .replace(/\./g, '')
                 .replace(',', '.')
         );
+
+        return isNaN(parsed) ? 0 : parsed;
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value;
         const digits = input.replace(/\D/g, '');
+
+        if (digits.length === 0) {
+            onChange('', 0); // valor vazio
+            return;
+        }
+
         if (digits.length <= 11) {
             const formatted = formatCurrency(digits);
             const raw = parseCurrency(formatted);
@@ -38,13 +51,13 @@ export default function CurrencyInput({ value, onChange, error, helperText }: Pr
         }
     };
 
+
     return (
         <TextField
             placeholder="Valor do tratamento"
             value={value}
             onChange={handleChange}
             error={error}
-            helperText={error ? helperText : ''}
             variant="outlined"
             sx={{
                 minWidth: '330px',
