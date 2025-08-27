@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import PinpadResult from './PinpadResult';
-import PinpadSuccessResult from './PinpadSuccessResult';
-import PinpadGenericErrorResult from "@/components/PinpadGenericErrorResult";
-import PinpadRejectedResult from "@/components/PinpadRejectedResult";
+import PosSuccessResult from './PosSuccessResult';
+import PosRejectedResult from "@/components/PosRejectedResult";
+import PosGenericErrorResult from "@/components/PosGenericErrorResult";
+import PosResult from "@/components/PosResult";
 
 type Props = {
     transactionId: string;
 };
 
-export default function PinpadStatusPoller({ transactionId }: Props) {
+export default function PosStatusPoller({ transactionId }: Props) {
     const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'ERROR'>('PENDING');
-    const [pinpadData, setPinpadData] = useState<any>(null);
+    const [posData, setPosData] = useState<any>(null);
 
     useEffect(() => {
         let attempts = 0;
         const interval = setInterval(async () => {
             try {
-                const { data } = await axios.get(`/api/proxy/pinpad/remote/status/${transactionId}`);
+                const { data } = await axios.get(`/api/proxy/pos/remote/status/${transactionId}`);
                 const statusResult = data?.data?.status;
 
                 console.log("Status retornado:", statusResult);
@@ -27,7 +27,7 @@ export default function PinpadStatusPoller({ transactionId }: Props) {
                 }, 0) || 0;
 
                 if (statusResult === 'APPROVED') {
-                    setPinpadData({
+                    setPosData({
                         customerName: data.data.clientName,
                         customerDocument: data.data.payments?.[0]?.recipientDocument ?? '',
                         amount: parseFloat(data.data.value),
@@ -77,10 +77,10 @@ export default function PinpadStatusPoller({ transactionId }: Props) {
 
     console.log("Status atual do componente:", status);
 
-    if (status === 'PENDING') return <PinpadResult transactionId={transactionId} />;
-    if (status === 'APPROVED' && pinpadData) return <PinpadSuccessResult {...pinpadData} />;
-    if (status === 'DISAPPROVED') return <PinpadRejectedResult />;
-    if (status === 'ABORTED' || status === 'ERROR') return <PinpadGenericErrorResult />;
+    if (status === 'PENDING') return <PosResult transactionId={transactionId} />;
+    if (status === 'APPROVED' && posData) return <PosSuccessResult {...posData} />;
+    if (status === 'DISAPPROVED') return <PosRejectedResult />;
+    if (status === 'ABORTED' || status === 'ERROR') return <PosGenericErrorResult />;
 
     return null;
 }

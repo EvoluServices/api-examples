@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {
   Box,
   FormControl,
@@ -11,17 +11,17 @@ import {
 import {brands} from '@/components/Brand';
 import {useTransaction} from '@/contexts/TransactionContext';
 import {maskCpfCnpj, onlyDigits, isCpfCnpjLenValid} from '@/utils/document';
-import { parseApiError } from '@/utils/httpErrors';
-import PosResult from "@/components/PosResult";
+import {parseApiError} from '@/utils/httpErrors';
 import {regexEmail} from '@/utils/regex';
 import axios from "axios";
 import {getApiConfigFromCookies} from "@/utils/apiConfig";
+import PosStatusPoller from "@/components/PosStatusPoller";
 
-type PosProps = {
+type OrderProps = {
   onConclude?: () => void;
 };
 
-export default function Pos({ onConclude }: PosProps) {
+export default function Pos({onConclude}: OrderProps) {
   const {
     amount,
     paymentType,
@@ -47,11 +47,17 @@ export default function Pos({ onConclude }: PosProps) {
   const showCustomerFields = paymentType === 'debit' || !!installments;
   const showSubmitButton = showCustomerFields;
   const filteredBrands = brands.filter((b) => b.type === paymentType);
-
   const [touchedName, setTouchedName] = useState(false);
   const [touchedDocument, setTouchedDocument] = useState(false);
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [posResult, setPosResult] = useState<any>(null);
+
+  useEffect(() => {
+    const config = getApiConfigFromCookies();
+    if (config?.values?.callback) {
+      setCallback(config.values.callback);
+    }
+  }, []);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -65,6 +71,15 @@ export default function Pos({ onConclude }: PosProps) {
     onConclude?.();
   };
 
+  const checkTransactionStatus = async (transactionId: string) => {
+    try {
+      const response = await axios.get(`/api/proxy/pos/remote/status/${transactionId}`);
+      return response.data?.status || 'PENDING';
+    } catch (error) {
+      console.error('Erro ao buscar status da transação:', error);
+      return 'PENDING';
+    }
+  };
 
   const handleSubmit = async () => {
     const docDigits = onlyDigits(customerDocument);
@@ -73,31 +88,47 @@ export default function Pos({ onConclude }: PosProps) {
     const validEmail = regexEmail.test(customerEmail);
 
     if (!validName || !validDoc || !validEmail) {
-      setSnackbar({ open: true, severity: 'error', title: 'campos ausentes ou nao preenchidos', description: 'Preencha todos os campos corretamente antes de finalizar.' });
+      setSnackbar({
+        open: true,
+        severity: 'error',
+        title: 'campos ausentes ou nao preenchidos',
+        description: 'Preencha todos os campos corretamente antes de finalizar.'
+      });
       return;
     }
 
     const token = await fetchBearerToken();
     if (!token) {
-      setSnackbar({ open: true, severity: 'error', title: 'Erro ao obter o token.', description: 'Verifique suas credenciais.' });
+      setSnackbar({
+        open: true,
+        severity: 'error',
+        title: 'Erro ao obter o token.',
+        description: 'Verifique suas credenciais.'
+      });
       return;
     }
 
-    // 2. Envia a transação
     const response = await postRemoteTransaction(token);
     if (response?.success === 'true') {
       setPosResult({
         transactionId: response.transactionId,
         customerName,
+        customerDocument,
         amount: amountFloat,
         installments,
-        cardBrand,
+        payment: amountFloat / parseInt(installments || '1'),
+        callback,
       });
+
     } else {
-      setSnackbar({ open: true, severity: 'error', title: 'Erro ao criar a transação.', description: 'Verifique suas credenciais.' });
+      setSnackbar({
+        open: true,
+        severity: 'error',
+        title: 'Erro ao criar a transação.',
+        description: 'Verifique suas credenciais.'
+      });
     }
   };
-
 
   const fetchBearerToken = async () => {
     try {
@@ -113,7 +144,7 @@ export default function Pos({ onConclude }: PosProps) {
       const response = await axios.post(`/api/proxy/pos/remote/token`, body);
       return response.data?.Bearer || null;
     } catch (err) {
-      const { title, description } = parseApiError(err);
+      const {title, description} = parseApiError(err);
       setSnackbar({
         open: true,
         severity: 'error',
@@ -145,10 +176,10 @@ export default function Pos({ onConclude }: PosProps) {
         'Content-Type': 'application/json',
       };
 
-      const response = await axios.post(`/api/proxy/pos/remote/transaction`, payload, { headers });
+      const response = await axios.post(`/api/proxy/pos/remote/transaction`, payload, {headers});
       return response.data;
     } catch (error) {
-      const { title, description } = parseApiError(error);
+      const {title, description} = parseApiError(error);
       setSnackbar({
         open: true,
         severity: 'error',
@@ -158,8 +189,6 @@ export default function Pos({ onConclude }: PosProps) {
       return null;
     }
   };
-
-
 
   return (
       <Box
@@ -172,10 +201,10 @@ export default function Pos({ onConclude }: PosProps) {
       >
 
         {/* Coluna da esquerda: campos do pedido */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{flex: 1, display: 'flex', flexDirection: 'column', gap: 2}}>
 
 
-          <Box sx={{display: 'flex', flexDirection: 'row', gap: 2 }}>
+          <Box sx={{display: 'flex', flexDirection: 'row', gap: 2}}>
 
             {/*Payment Type + Brand + Installments*/}
             <Box sx={{width: '20%', minWidth: 110}}>
@@ -226,7 +255,7 @@ export default function Pos({ onConclude }: PosProps) {
             )}
 
             {showInstallments && (
-                <Box sx={{width: '36%',minWidth: 180, maxWidth: 180}}>
+                <Box sx={{width: '36%', minWidth: 180, maxWidth: 180}}>
                   <FormControl fullWidth>
                     <InputLabel id="installments-label">Parcelamento</InputLabel>
                     <Select
@@ -256,7 +285,7 @@ export default function Pos({ onConclude }: PosProps) {
 
           {/* Campos do Cliente */}
           {showCustomerFields && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 500 }}>
+              <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, minWidth: 500}}>
                 <TextField
                     label="Nome"
                     sx={{backgroundColor: '#FFF'}}
@@ -287,7 +316,7 @@ export default function Pos({ onConclude }: PosProps) {
           )}
 
           {showSubmitButton && (
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              <Box sx={{display: 'flex', gap: 2, mt: 2}}>
                 <Button
                     variant="contained"
                     sx={{
@@ -334,31 +363,29 @@ export default function Pos({ onConclude }: PosProps) {
         </Box>
         {/* Coluna da direita: resultado */}
         {posResult && (
-            <Box sx={{ ml: 20, height: 'fit-content', alignSelf: 'flex-start' }}>
-              <PosResult
-                  transactionId={posResult.transactionId}
-                  onConclude={handleConclude}
-              />
+            <Box sx={{ml: 20, height: 'fit-content', alignSelf: 'flex-start'}}>
+              <PosStatusPoller transactionId={posResult.transactionId}/>
             </Box>
+
         )}
 
         {/* Snackbar */}
         <Snackbar
             open={snackbar.open}
             autoHideDuration={5000}
-            onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            onClose={() => setSnackbar((prev) => ({...prev, open: false}))}
+            anchorOrigin={{vertical: 'top', horizontal: 'center'}}
         >
           <Alert
-              onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+              onClose={() => setSnackbar((prev) => ({...prev, open: false}))}
               severity={snackbar.severity as AlertColor}
-              sx={{ width: '100%' }}
+              sx={{width: '100%'}}
           >
             <Typography variant="subtitle1" fontWeight="bold">
               {snackbar.title}
             </Typography>
             <Typography
-                sx={{ whiteSpace: 'pre-line' }}
+                sx={{whiteSpace: 'pre-line'}}
                 variant="body2">{snackbar.description}</Typography>
           </Alert>
         </Snackbar>
