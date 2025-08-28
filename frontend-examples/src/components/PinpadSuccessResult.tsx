@@ -1,7 +1,8 @@
-import {Box, Typography, Paper, Grid, Button} from '@mui/material';
+import { Box, Typography, Paper, Grid, Button } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import {formatDocument} from '@/utils/formatDocument';
-import {formatCurrency} from '@/utils/formatCurrency';
+import { formatDocument } from '@/utils/formatDocument';
+import { formatCurrency } from '@/utils/formatCurrency';
+import { useRouter } from 'next/navigation';
 
 type Props = {
     customerName: string;
@@ -12,7 +13,23 @@ type Props = {
     onConclude?: () => void;
 };
 
-export default function PinpadSuccessResult({customerName, customerDocument, amount, installments, payment, onConclude}: Props) {
+export default function PinpadSuccessResult({
+    customerName,
+    customerDocument,
+    amount,
+    installments,
+    payment,
+    onConclude,
+}: Props) {
+    const router = useRouter();
+
+    const handleConclude = () => {
+        if (onConclude) {
+            onConclude(); // executa algo se o pai quiser tratar também
+        }
+        router.push('/'); // volta para a tela inicial
+    };
+
     return (
         <Box
             sx={{
@@ -32,43 +49,49 @@ export default function PinpadSuccessResult({customerName, customerDocument, amo
                 }}
             >
                 <Box>
-                    <CheckCircleIcon sx={{fontSize: 56, color: 'success.main'}}/>
+                    <CheckCircleIcon sx={{ fontSize: 56, color: 'success.main' }} />
                 </Box>
                 <Typography
                     variant="h6"
                     fontWeight="bold"
                     color="success.main"
-                    sx={{textTransform: 'uppercase', letterSpacing: '1px', mb: 1}}
+                    sx={{ textTransform: 'uppercase', letterSpacing: '1px', mb: 1 }}
                 >
                     Transação Aprovada com Sucesso
                 </Typography>
 
-                <Paper elevation={2} sx={{p: 4, borderRadius: 3, maxWidth: 600, mx: 'auto'}}>
+                <Paper elevation={2} sx={{ p: 4, borderRadius: 3, maxWidth: 600, mx: 'auto' }}>
                     <Grid container spacing={4}>
                         <Grid size={6}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{color: '#5a646e'}}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e' }}>
                                 Nome:
                             </Typography>
-                            <Typography variant="body1"
-                                        sx={{fontWeight: '700', color: '#204986', textTransform: 'capitalize'}}>
+                            <Typography
+                                variant="body1"
+                                sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}
+                            >
                                 {customerName}
                             </Typography>
                         </Grid>
                         <Grid size={6}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{color: '#5a646e'}}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e' }}>
                                 Documento:
                             </Typography>
-                            <Typography variant="body1"
-                                        sx={{fontWeight: '700', color: '#204986', textTransform: 'capitalize'}}>
+                            <Typography
+                                variant="body1"
+                                sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}
+                            >
                                 {formatDocument(customerDocument)}
                             </Typography>
                         </Grid>
                         <Grid size={6}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{color: '#5a646e'}}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e' }}>
                                 Valor:
                             </Typography>
-                            <Typography variant="body1"
-                                        sx={{fontWeight: '700', color: '#204986', textTransform: 'capitalize'}}>
+                            <Typography
+                                variant="body1"
+                                sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}
+                            >
                                 {amount.toLocaleString('pt-BR', {
                                     style: 'currency',
                                     currency: 'BRL',
@@ -76,21 +99,25 @@ export default function PinpadSuccessResult({customerName, customerDocument, amo
                             </Typography>
                         </Grid>
                         <Grid size={6}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{color: '#5a646e'}}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e' }}>
                                 Recebimento:
                             </Typography>
-                            <Typography variant="body1"
-                                        sx={{fontWeight: '700', color: '#00af6c', textTransform: 'capitalize'}}>
+                            <Typography
+                                variant="body1"
+                                sx={{ fontWeight: '700', color: '#00af6c', textTransform: 'capitalize' }}
+                            >
                                 {formatCurrency(payment)}
                             </Typography>
                         </Grid>
 
                         <Grid size={6}>
-                            <Typography variant="subtitle1" fontWeight="bold" sx={{color: '#5a646e'}}>
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#5a646e' }}>
                                 Parcelamento:
                             </Typography>
-                            <Typography variant="body1"
-                                        sx={{fontWeight: '700', color: '#204986', textTransform: 'capitalize'}}>
+                            <Typography
+                                variant="body1"
+                                sx={{ fontWeight: '700', color: '#204986', textTransform: 'capitalize' }}
+                            >
                                 {installments}x
                             </Typography>
                         </Grid>
@@ -117,7 +144,7 @@ export default function PinpadSuccessResult({customerName, customerDocument, amo
                                     px: 4,
                                     py: 1.5,
                                 }}
-                                onClick={onConclude}
+                                onClick={handleConclude}
                             >
                                 Concluir
                             </Button>

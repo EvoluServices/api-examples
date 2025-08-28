@@ -88,9 +88,9 @@ export const brands: Brand[] = [
     type: 'debit',
   },
   {
-    label: 'Mastercard Débito',
-    value: 'MASTERCARD_DEBITO',
-    images: '/brands/mastercard.png',
+    label: 'Maestro Débito',
+    value: 'MAESTRO',
+    images: '/brands/maestro.png',
     type: 'debit',
   },
   {

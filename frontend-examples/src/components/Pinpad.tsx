@@ -43,13 +43,21 @@ export default function Pinpad({onConclude}: OrderProps) {
     } = useTransaction();
 
     const amountFloat = parseFloat(amount || '0');
-    const showInstallments = paymentType === 'credit';
-    const showCustomerFields = paymentType === 'debit' || !!installments;
+
+    const showBrand = paymentType === 'credit' || paymentType === 'debit';
+    const showInstallments = paymentType === 'credit' && !!cardBrand;
+    const showCustomerFields =
+        (paymentType === 'debit' && !!cardBrand) ||
+        (paymentType === 'credit' && !!installments);
     const showSubmitButton = showCustomerFields;
+
     const filteredBrands = brands.filter((b) => b.type === paymentType);
+
+    // estados touched
     const [touchedName, setTouchedName] = useState(false);
     const [touchedDocument, setTouchedDocument] = useState(false);
     const [touchedEmail, setTouchedEmail] = useState(false);
+
     const [pinpadResult, setPinpadResult] = useState<any>(null);
 
     useEffect(() => {
@@ -71,16 +79,6 @@ export default function Pinpad({onConclude}: OrderProps) {
         onConclude?.();
     };
 
-    const checkTransactionStatus = async (transactionId: string) => {
-        try {
-            const response = await axios.get(`/api/proxy/pinpad/remote/status/${transactionId}`);
-            return response.data?.status || 'PENDING';
-        } catch (error) {
-            console.error('Erro ao buscar status da transação:', error);
-            return 'PENDING';
-        }
-    };
-
     const handleSubmit = async () => {
         const docDigits = onlyDigits(customerDocument);
         const validName = customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName);
@@ -88,10 +86,14 @@ export default function Pinpad({onConclude}: OrderProps) {
         const validEmail = regexEmail.test(customerEmail);
 
         if (!validName || !validDoc || !validEmail) {
+            setTouchedName(true);
+            setTouchedDocument(true);
+            setTouchedEmail(true);
+
             setSnackbar({
                 open: true,
                 severity: 'error',
-                title: 'campos ausentes ou nao preenchidos',
+                title: 'Campos ausentes ou não preenchidos',
                 description: 'Preencha todos os campos corretamente antes de finalizar.'
             });
             return;
@@ -132,7 +134,7 @@ export default function Pinpad({onConclude}: OrderProps) {
 
     const fetchBearerToken = async () => {
         try {
-            const config = getApiConfigFromCookies(); // ← pega ambiente, url, apiKey, merchantKey
+            const config = getApiConfigFromCookies(); 
 
             const body = {
                 auth: {
@@ -163,7 +165,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                 transaction: {
                     merchantId: config.values.merchantKey,
                     value: amount,
-                    installments: parseInt(installments),
+                    installments: parseInt(installments || '1'),
                     clientName: customerName,
                     clientEmail: customerEmail,
                     paymentBrand: cardBrand,
@@ -190,23 +192,21 @@ export default function Pinpad({onConclude}: OrderProps) {
         }
     };
 
+    const handleClear = () => {
+        setCustomerName('');
+        setCustomerDocument('');
+        setCustomerEmail('');
+        setTouchedName(false);
+        setTouchedDocument(false);
+        setTouchedEmail(false);
+    };
+
     return (
-        <Box
-            sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: 4,
-                mt: 2,
-            }}
-        >
-
-            {/* Coluna da esquerda: campos do pedido */}
+        <Box sx={{display: 'flex', flexDirection: 'row', gap: 4, mt: 2}}>
+            {/* Coluna esquerda: campos do pedido */}
             <Box sx={{flex: 1, display: 'flex', flexDirection: 'column', gap: 2}}>
-
-
                 <Box sx={{display: 'flex', flexDirection: 'row', gap: 2}}>
-
-                    {/*Payment Type + Brand + Installments*/}
+                    {/* Payment Type */}
                     <Box sx={{width: '20%', minWidth: 110}}>
                         <FormControl fullWidth>
                             <InputLabel id="payment-type-label">Função</InputLabel>
@@ -219,6 +219,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                                     setCardBrand('');
                                     setInstallments('');
                                     clearCustomerData();
+                                    handleClear(); // limpa touched
                                 }}
                             >
                                 <MenuItem value="debit">Débito</MenuItem>
@@ -227,7 +228,8 @@ export default function Pinpad({onConclude}: OrderProps) {
                         </FormControl>
                     </Box>
 
-                    {paymentType && (
+                    {/* Bandeira */}
+                    {showBrand && (
                         <Box sx={{width: '36%', minWidth: 180, maxWidth: 180}}>
                             <FormControl fullWidth>
                                 <InputLabel id="card-brand-label">Bandeira</InputLabel>
@@ -235,7 +237,12 @@ export default function Pinpad({onConclude}: OrderProps) {
                                     sx={{bgcolor: '#fff'}}
                                     labelId="card-brand-label"
                                     value={cardBrand || ''}
-                                    onChange={(e) => setCardBrand(e.target.value)}
+                                    onChange={(e) => {
+                                        setCardBrand(e.target.value);
+                                        setInstallments('');
+                                        clearCustomerData();
+                                        handleClear();
+                                    }}
                                 >
                                     {filteredBrands.map((b) => (
                                         <MenuItem key={b.value} value={b.value}>
@@ -254,6 +261,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                         </Box>
                     )}
 
+                    {/* Parcelamento só no crédito */}
                     {showInstallments && (
                         <Box sx={{width: '36%', minWidth: 180, maxWidth: 180}}>
                             <FormControl fullWidth>
@@ -262,7 +270,11 @@ export default function Pinpad({onConclude}: OrderProps) {
                                     sx={{bgcolor: '#fff'}}
                                     labelId="installments-label"
                                     value={installments}
-                                    onChange={(e) => setInstallments(e.target.value)}
+                                    onChange={(e) => {
+                                        setInstallments(e.target.value);
+                                        clearCustomerData();
+                                        handleClear();
+                                    }}
                                 >
                                     {[...Array(24)].map((_, i) => {
                                         const count = i + 1;
@@ -329,10 +341,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                                 boxShadow: 'none',
                                 border: '1px solid #ccc',
                             }}
-                            onClick={() => {
-                                setCustomerName('');
-                                setCustomerDocument('');
-                            }}
+                            onClick={handleClear}
                         >
                             Limpar
                         </Button>
@@ -361,12 +370,12 @@ export default function Pinpad({onConclude}: OrderProps) {
                     </Box>
                 )}
             </Box>
+
             {/* Coluna da direita: resultado */}
             {pinpadResult && (
                 <Box sx={{ml: 20, height: 'fit-content', alignSelf: 'flex-start'}}>
                     <PinpadStatusPoller transactionId={pinpadResult.transactionId}/>
                 </Box>
-
             )}
 
             {/* Snackbar */}
@@ -384,9 +393,9 @@ export default function Pinpad({onConclude}: OrderProps) {
                     <Typography variant="subtitle1" fontWeight="bold">
                         {snackbar.title}
                     </Typography>
-                    <Typography
-                        sx={{whiteSpace: 'pre-line'}}
-                        variant="body2">{snackbar.description}</Typography>
+                    <Typography sx={{whiteSpace: 'pre-line'}} variant="body2">
+                        {snackbar.description}
+                    </Typography>
                 </Alert>
             </Snackbar>
         </Box>
