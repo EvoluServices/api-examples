@@ -82,25 +82,25 @@ export const brands: Brand[] = [
 
   // Débito
   {
-    label: 'Visa Débito',
+    label: 'Visa',
     value: 'VISA_DEBITO',
     images: '/brands/visa-electron.png',
     type: 'debit',
   },
   {
-    label: 'Maestro Débito',
+    label: 'Maestro',
     value: 'MAESTRO',
     images: '/brands/maestro.png',
     type: 'debit',
   },
   {
-    label: 'Elo Débito',
+    label: 'Elo',
     value: 'ELO_DEBITO',
     images: '/brands/elo.png',
     type: 'debit',
   },
   {
-    label: 'Cabal Débito',
+    label: 'Cabal',
     value: 'CABAL_DEBITO',
     images: '/brands/cabal.png',
     type: 'debit',
@@ -118,7 +118,7 @@ export const brands: Brand[] = [
     type: 'debit',
   },
   {
-    label: 'Sorocred Débito',
+    label: 'Sorocred',
     value: 'SOROCRED_DEBITO',
     images: '/brands/sorocred.png',
     type: 'debit',
