@@ -36,8 +36,6 @@ export default function Pinpad({onConclude}: OrderProps) {
         setCustomerDocument,
         customerEmail,
         setCustomerEmail,
-        callback,
-        setCallback,
         clearCustomerData,
         resetTransaction,
     } = useTransaction();
@@ -60,24 +58,12 @@ export default function Pinpad({onConclude}: OrderProps) {
 
     const [pinpadResult, setPinpadResult] = useState<any>(null);
 
-    useEffect(() => {
-        const config = getApiConfigFromCookies();
-        if (config?.values?.callback) {
-            setCallback(config.values.callback);
-        }
-    }, []);
-
     const [snackbar, setSnackbar] = useState({
         open: false,
         severity: 'error' as AlertColor,
         title: '',
         description: '',
     })
-
-    const handleConclude = () => {
-        resetTransaction();
-        onConclude?.();
-    };
 
     const handleSubmit = async () => {
         const docDigits = onlyDigits(customerDocument);
@@ -119,7 +105,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                 amount: amountFloat,
                 installments,
                 payment: amountFloat / parseInt(installments || '1'),
-                callback,
+                callback: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler"
             });
 
         } else {
@@ -169,7 +155,7 @@ export default function Pinpad({onConclude}: OrderProps) {
                     clientName: customerName,
                     clientEmail: customerEmail,
                     paymentBrand: cardBrand,
-                    callbackUrl: callback,
+                    callbackUrl: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler",
                 },
             };
 

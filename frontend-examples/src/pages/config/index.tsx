@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
-import {Box, Grid, Typography, Button, IconButton,Snackbar, Alert, TextField, Radio, Collapse} from "@mui/material";
-import { Stack } from "@mui/system";
+import {Box, Grid, Typography, Button, IconButton, Snackbar, Alert, TextField, Radio, Collapse} from "@mui/material";
+import {Stack} from "@mui/system";
 import CodeIcon from "@mui/icons-material/Code";
 import FactoryIcon from "@mui/icons-material/Factory";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -25,12 +25,6 @@ export default function Index() {
     const [merchantProdKeyOpen, setMerchantProdKeyOpen] = useState(false);
     const MerchantProdKeyToggleOpen = () => setMerchantProdKeyOpen((prev) => !prev);
 
-    const [callbackDevKeyOpen, setCallbackDevKeyOpen] = useState(false);
-    const callbackDevKeyToggleOpen = () => setCallbackDevKeyOpen((prev) => !prev);
-
-    const [callbackProdKeyOpen, setCallbackProdKeyOpen] = useState(false);
-    const callbackProdKeyToggleOpen = () => setCallbackProdKeyOpen((prev) => !prev);
-
     const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'prod' | null>(null);
 
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -41,7 +35,11 @@ export default function Index() {
     function readConfigFromCookie(env: 'dev' | 'prod') {
         const raw = Cookies.get(COOKIE_CFG_KEY(env));
         if (!raw) return null;
-        try { return JSON.parse(raw); } catch { return null; }
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
     }
 
     function applyFromCookie(env: 'dev' | 'prod') {
@@ -102,9 +100,9 @@ export default function Index() {
         value: string
     ) => {
         if (env === 'dev') {
-            setDevValues((prev) => ({ ...prev, [field]: value }));
+            setDevValues((prev) => ({...prev, [field]: value}));
         } else {
-            setProdValues((prev) => ({ ...prev, [field]: value }));
+            setProdValues((prev) => ({...prev, [field]: value}));
         }
     };
 
@@ -183,7 +181,7 @@ export default function Index() {
                 mt: 5,
             }}
         >
-            <Box sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{width: "100%", display: "flex", flexDirection: "column"}}>
                 <Typography
                     sx={{
                         fontWeight: 700,
@@ -227,7 +225,7 @@ export default function Index() {
                         }}
                     >
                         <Grid container spacing={6} alignItems="flex-start">
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            <Grid size={{xs: 12, md: 6}}>
                                 <Box
                                     sx={{
                                         bgcolor: "#fff",
@@ -242,9 +240,10 @@ export default function Index() {
                                         applyFromCookie('dev');
                                     }}
                                 >
-                                    <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+                                    <Stack direction="row" alignItems="center" justifyContent="space-between"
+                                           width="100%">
                                         <Stack direction="row" alignItems="center" gap={1} flexGrow={1}>
-                                            <CodeIcon sx={{ fontSize: 32, color: "#0774e7" }} />
+                                            <CodeIcon sx={{fontSize: 32, color: "#0774e7"}}/>
                                             <Typography
                                                 sx={{
                                                     fontWeight: 700,
@@ -268,7 +267,8 @@ export default function Index() {
                                 </Box>
 
                                 <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={PartnerDevKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                    <Box display="flex" alignItems="center" onClick={PartnerDevKeyToggleOpen}
+                                         sx={{cursor: 'pointer'}}>
                                         <Typography
                                             sx={{
                                                 fontWeight: 700,
@@ -279,8 +279,9 @@ export default function Index() {
                                         >
                                             Chaves da API
                                         </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {partnerDevKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        <IconButton size="small" sx={{ml: 1}}>
+                                            {partnerDevKeyOpen ? <ExpandLessIcon sx={{color: '#0d4c94'}}/> :
+                                                <ExpandMoreIcon sx={{color: '#0d4c94'}}/>}
                                         </IconButton>
                                     </Box>
 
@@ -295,12 +296,14 @@ export default function Index() {
                                                 mb: 2,
                                             }}
                                         >
-                                            A chave da API é um identificador único acompanhado de uma senha, utilizados pelos parceiros para se autenticar com segurança nos serviços da EvoluServices.
+                                            A chave da API é um identificador único acompanhado de uma senha, utilizados
+                                            pelos parceiros para se autenticar com segurança nos serviços da
+                                            EvoluServices.
                                         </Typography>
 
                                     </Collapse>
 
-                                    <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
+                                    <Box display="flex" gap={2} flexDirection={{xs: 'column', sm: 'row'}}>
                                         <TextField
                                             label="Identificador"
                                             variant="outlined"
@@ -336,7 +339,8 @@ export default function Index() {
 
                                 </Box>
                                 <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={merchantDevKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                    <Box display="flex" alignItems="center" onClick={merchantDevKeyToggleOpen}
+                                         sx={{cursor: 'pointer'}}>
                                         <Typography
                                             sx={{
                                                 fontWeight: 700,
@@ -347,8 +351,9 @@ export default function Index() {
                                         >
                                             Chaves do Estabelecimento
                                         </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {merchantDevKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        <IconButton size="small" sx={{ml: 1}}>
+                                            {merchantDevKeyOpen ? <ExpandLessIcon sx={{color: '#0d4c94'}}/> :
+                                                <ExpandMoreIcon sx={{color: '#0d4c94'}}/>}
                                         </IconButton>
                                     </Box>
 
@@ -363,83 +368,10 @@ export default function Index() {
                                                 mb: 2,
                                             }}
                                         >
-                                            A chave do estabelecimento é um identificador único que representa a ligação entre o parceiro e o estabelecimento. Ela garante que, ao utilizar nossa API, a requisição seja direcionada corretamente para o estabelecimento vinculado, assegurando autenticidade e rastreabilidade da integração.
-                                        </Typography>
-
-                                    </Collapse>
-
-                                        <Box
-                                            display="flex"
-                                            flexDirection="column"
-                                            rowGap={2}
-                                        >
-                                            <TextField
-                                                label="Nome do Estabelecimento"
-                                                variant="outlined"
-                                                fullWidth
-                                                value={devValues.merchantName}
-                                                onChange={(e) => handleInputChange('dev', 'merchantName', e.target.value)}
-                                                error={devErrors.merchantName}
-                                                sx={{
-                                                    backgroundColor: "#fff",
-                                                    borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                            <TextField
-                                                label="Chave de Integração do Estabelecimento"
-                                                variant="outlined"
-                                                fullWidth
-                                                value={devValues.merchantKey}
-                                                onChange={(e) => handleInputChange('dev', 'merchantKey', e.target.value)}
-                                                error={devErrors.merchantKey}
-                                                sx={{
-                                                    backgroundColor: "#fff",
-                                                    borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
-
-                                </Box>
-
-                                <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={callbackDevKeyToggleOpen} sx={{ cursor: 'pointer' }}>
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "16px",
-                                                lineHeight: "24px",
-                                                color: "#204986",
-                                            }}
-                                        >
-                                            URL de Callback para POS / Pinpad
-                                        </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {callbackDevKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
-                                        </IconButton>
-                                    </Box>
-
-                                    <Collapse in={callbackDevKeyOpen} timeout="auto" unmountOnExit>
-
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "14px",
-                                                lineHeight: "20px",
-                                                color: "#5a646e",
-                                                mb: 2,
-                                            }}
-                                        >
-                                            A URL de callback é essencial para integrações com dispositivos POS e Pinpad.
-                                            Ela permite que o sistema receba notificações automáticas sobre o status das transações realizadas,
-                                            como aprovações, recusas, e outras atualizações relevantes. Além disso, por meio desse retorno assíncrono,
-                                            é possível obter as datas e valores previstos de repasse, garantindo maior controle
-                                            e visibilidade sobre o fluxo financeiro.
+                                            A chave do estabelecimento é um identificador único que representa a ligação
+                                            entre o parceiro e o estabelecimento. Ela garante que, ao utilizar nossa
+                                            API, a requisição seja direcionada corretamente para o estabelecimento
+                                            vinculado, assegurando autenticidade e rastreabilidade da integração.
                                         </Typography>
 
                                     </Collapse>
@@ -450,12 +382,27 @@ export default function Index() {
                                         rowGap={2}
                                     >
                                         <TextField
-                                            label="url de callback"
+                                            label="Nome do Estabelecimento"
                                             variant="outlined"
                                             fullWidth
-                                            value={devValues.callback}
-                                            onChange={(e) => handleInputChange('dev', 'callback', e.target.value)}
-                                            error={devErrors.callback}
+                                            value={devValues.merchantName}
+                                            onChange={(e) => handleInputChange('dev', 'merchantName', e.target.value)}
+                                            error={devErrors.merchantName}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 3,
+                                                }
+                                            }}
+                                        />
+                                        <TextField
+                                            label="Chave de Integração do Estabelecimento"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={devValues.merchantKey}
+                                            onChange={(e) => handleInputChange('dev', 'merchantKey', e.target.value)}
+                                            error={devErrors.merchantKey}
                                             sx={{
                                                 backgroundColor: "#fff",
                                                 borderRadius: 3,
@@ -468,9 +415,11 @@ export default function Index() {
 
                                 </Box>
 
+
+
                             </Grid>
 
-                            <Grid size={{ xs: 12, md: 6 }}>
+                            <Grid size={{xs: 12, md: 6}}>
                                 <Box
                                     sx={{
                                         bgcolor: "#fff",
@@ -485,9 +434,10 @@ export default function Index() {
                                         applyFromCookie('prod');
                                     }}
                                 >
-                                    <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+                                    <Stack direction="row" alignItems="center" justifyContent="space-between"
+                                           width="100%">
                                         <Stack direction="row" alignItems="center" gap={1} flexGrow={1}>
-                                            <FactoryIcon sx={{ fontSize: 32, color: "#0774e7" }} />
+                                            <FactoryIcon sx={{fontSize: 32, color: "#0774e7"}}/>
                                             <Typography
                                                 sx={{
                                                     fontWeight: 700,
@@ -511,7 +461,8 @@ export default function Index() {
                                 </Box>
 
                                 <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={PartnerProdKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                    <Box display="flex" alignItems="center" onClick={PartnerProdKeyToggleOpen}
+                                         sx={{cursor: 'pointer'}}>
                                         <Typography
                                             sx={{
                                                 fontWeight: 700,
@@ -522,8 +473,9 @@ export default function Index() {
                                         >
                                             Chaves da API
                                         </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {partnerProdKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        <IconButton size="small" sx={{ml: 1}}>
+                                            {partnerProdKeyOpen ? <ExpandLessIcon sx={{color: '#0d4c94'}}/> :
+                                                <ExpandMoreIcon sx={{color: '#0d4c94'}}/>}
                                         </IconButton>
                                     </Box>
 
@@ -538,47 +490,50 @@ export default function Index() {
                                                 mb: 2,
                                             }}
                                         >
-                                            A chave de API em produção é fornecida pela EvoluServices após a conclusão do processo de homologação, conforme o método estabelecido para a integração em ambiente produtivo.
+                                            A chave de API em produção é fornecida pela EvoluServices após a conclusão
+                                            do processo de homologação, conforme o método estabelecido para a integração
+                                            em ambiente produtivo.
                                         </Typography>
                                     </Collapse>
-                                        <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
-                                            <TextField
-                                                label="Identificador"
-                                                variant="outlined"
-                                                fullWidth
-                                                value={prodValues.apiKey}
-                                                onChange={(e) => handleInputChange('prod', 'apiKey', e.target.value)}
-                                                error={prodErrors.apiKey}
-                                                sx={{
-                                                    backgroundColor: "#fff",
+                                    <Box display="flex" gap={2} flexDirection={{xs: 'column', sm: 'row'}}>
+                                        <TextField
+                                            label="Identificador"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={prodValues.apiKey}
+                                            onChange={(e) => handleInputChange('prod', 'apiKey', e.target.value)}
+                                            error={prodErrors.apiKey}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
                                                     borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                            <TextField
-                                                label="Senha"
-                                                variant="outlined"
-                                                type="password"
-                                                fullWidth
-                                                value={prodValues.apiSecret}
-                                                onChange={(e) => handleInputChange('prod', 'apiSecret', e.target.value)}
-                                                error={prodErrors.apiSecret}
-                                                sx={{
-                                                    backgroundColor: "#fff",
+                                                }
+                                            }}
+                                        />
+                                        <TextField
+                                            label="Senha"
+                                            variant="outlined"
+                                            type="password"
+                                            fullWidth
+                                            value={prodValues.apiSecret}
+                                            onChange={(e) => handleInputChange('prod', 'apiSecret', e.target.value)}
+                                            error={prodErrors.apiSecret}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
                                                     borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
+                                                }
+                                            }}
+                                        />
+                                    </Box>
 
                                 </Box>
 
                                 <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={MerchantProdKeyToggleOpen} sx={{ cursor: 'pointer' }}>
+                                    <Box display="flex" alignItems="center" onClick={MerchantProdKeyToggleOpen}
+                                         sx={{cursor: 'pointer'}}>
                                         <Typography
                                             sx={{
                                                 fontWeight: 700,
@@ -589,8 +544,9 @@ export default function Index() {
                                         >
                                             Chaves do Estabelecimento
                                         </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {partnerProdKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
+                                        <IconButton size="small" sx={{ml: 1}}>
+                                            {partnerProdKeyOpen ? <ExpandLessIcon sx={{color: '#0d4c94'}}/> :
+                                                <ExpandMoreIcon sx={{color: '#0d4c94'}}/>}
                                         </IconButton>
                                     </Box>
 
@@ -605,97 +561,39 @@ export default function Index() {
                                                 mb: 2,
                                             }}
                                         >
-                                            A chave de API do estabelecimento em produção é fornecida pela EvoluServices após a conclusão do processo de homologação. O cadastro e a disponibilização dessas chaves são definidos em comum acordo entre o parceiro e a EvoluServices.
+                                            A chave de API do estabelecimento em produção é fornecida pela EvoluServices
+                                            após a conclusão do processo de homologação. O cadastro e a disponibilização
+                                            dessas chaves são definidos em comum acordo entre o parceiro e a
+                                            EvoluServices.
                                         </Typography>
                                     </Collapse>
-                                        <Box
-                                            display="flex"
-                                            flexDirection="column"
-                                            rowGap={2}
-                                        >
-                                            <TextField
-                                                label="Nome do Estabelecimento"
-                                                variant="outlined"
-                                                fullWidth
-                                                value={prodValues.merchantName}
-                                                onChange={(e) => handleInputChange('prod', 'merchantName', e.target.value)}
-                                                error={prodErrors.merchantName}
-                                                sx={{
-                                                    backgroundColor: "#fff",
-                                                    borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                            <TextField
-                                                label="Chave de Integração do Estabelecimento"
-                                                variant="outlined"
-                                                fullWidth
-                                                value={prodValues.merchantKey}
-                                                onChange={(e) => handleInputChange('prod', 'merchantKey', e.target.value)}
-                                                error={prodErrors.merchantKey}
-                                                sx={{
-                                                    backgroundColor: "#fff",
-                                                    borderRadius: 3,
-                                                    '& .MuiOutlinedInput-root': {
-                                                        borderRadius: 3,
-                                                    }
-                                                }}
-                                            />
-                                        </Box>
-
-                                </Box>
-
-                                <Box mt={2}>
-                                    <Box display="flex" alignItems="center" onClick={callbackProdKeyToggleOpen} sx={{ cursor: 'pointer' }}>
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "16px",
-                                                lineHeight: "24px",
-                                                color: "#204986",
-                                            }}
-                                        >
-                                            URL de Callback para POS / Pinpad
-                                        </Typography>
-                                        <IconButton size="small" sx={{ ml: 1 }}>
-                                            {callbackProdKeyOpen ? <ExpandLessIcon sx={{ color: '#0d4c94' }} /> : <ExpandMoreIcon sx={{ color: '#0d4c94' }} />}
-                                        </IconButton>
-                                    </Box>
-
-                                    <Collapse in={callbackProdKeyOpen} timeout="auto" unmountOnExit>
-
-                                        <Typography
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "14px",
-                                                lineHeight: "20px",
-                                                color: "#5a646e",
-                                                mb: 2,
-                                            }}
-                                        >
-                                            A URL de callback é essencial para integrações com dispositivos POS e Pinpad.
-                                            Ela permite que o sistema receba notificações automáticas sobre o status das transações realizadas,
-                                            como aprovações, recusas, e outras atualizações relevantes. Além disso, por meio desse retorno assíncrono,
-                                            é possível obter as datas e valores previstos de repasse, garantindo maior controle
-                                            e visibilidade sobre o fluxo financeiro.
-                                        </Typography>
-
-                                    </Collapse>
-
                                     <Box
                                         display="flex"
                                         flexDirection="column"
                                         rowGap={2}
                                     >
                                         <TextField
-                                            label="url de callback"
+                                            label="Nome do Estabelecimento"
                                             variant="outlined"
                                             fullWidth
-                                            value={prodValues.callback}
-                                            onChange={(e) => handleInputChange('prod', 'callback', e.target.value)}
-                                            error={prodErrors.callback}
+                                            value={prodValues.merchantName}
+                                            onChange={(e) => handleInputChange('prod', 'merchantName', e.target.value)}
+                                            error={prodErrors.merchantName}
+                                            sx={{
+                                                backgroundColor: "#fff",
+                                                borderRadius: 3,
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: 3,
+                                                }
+                                            }}
+                                        />
+                                        <TextField
+                                            label="Chave de Integração do Estabelecimento"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={prodValues.merchantKey}
+                                            onChange={(e) => handleInputChange('prod', 'merchantKey', e.target.value)}
+                                            error={prodErrors.merchantKey}
                                             sx={{
                                                 backgroundColor: "#fff",
                                                 borderRadius: 3,
@@ -707,6 +605,7 @@ export default function Index() {
                                     </Box>
 
                                 </Box>
+
                             </Grid>
                         </Grid>
 
@@ -744,13 +643,13 @@ export default function Index() {
                 open={snackbarOpen}
                 autoHideDuration={4000}
                 onClose={() => setSnackbarOpen(false)}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-                sx={{ mt: '80px' }}
+                anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+                sx={{mt: '80px'}}
             >
                 <Alert
                     onClose={() => setSnackbarOpen(false)}
                     severity={snackbarSeverity}
-                    sx={{ width: '100%' }}
+                    sx={{width: '100%'}}
                 >
                     {snackbarMessage}
                 </Alert>

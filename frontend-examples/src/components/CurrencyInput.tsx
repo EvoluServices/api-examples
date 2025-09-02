@@ -60,7 +60,7 @@ export default function CurrencyInput({ value, onChange, error }: Props) {
             error={error}
             variant="outlined"
             sx={{
-                minWidth: '330px',
+                minWidth: '370px',
                 backgroundColor: "#fff",
                 borderRadius: 3,
                 '& .MuiOutlinedInput-root': {

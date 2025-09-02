@@ -40,15 +40,11 @@ export default function Pos({ onConclude }: OrderProps) {
         setCustomerDocument,
         customerEmail,
         setCustomerEmail,
-        callback,
-        setCallback,
         clearCustomerData,
         resetTransaction,
     } = useTransaction();
 
     const amountFloat = parseFloat(amount || '0');
-
-    // Fluxo progressivo corrigido
     const showBrand = paymentType === 'credit' || paymentType === 'debit';
     const showInstallments = paymentType === 'credit' && !!cardBrand;
     const showCustomerFields =
@@ -62,34 +58,12 @@ export default function Pos({ onConclude }: OrderProps) {
     const [touchedEmail, setTouchedEmail] = useState(false);
     const [posResult, setPosResult] = useState<any>(null);
 
-    useEffect(() => {
-        const config = getApiConfigFromCookies();
-        if (config?.values?.callback) {
-            setCallback(config.values.callback);
-        }
-    }, []);
-
     const [snackbar, setSnackbar] = useState({
         open: false,
         severity: 'error' as AlertColor,
         title: '',
         description: '',
     });
-
-    const handleConclude = () => {
-        resetTransaction();
-        onConclude?.();
-    };
-
-    const checkTransactionStatus = async (transactionId: string) => {
-        try {
-            const response = await axios.get(`/api/proxy/pos/remote/status/${transactionId}`);
-            return response.data?.status || 'PENDING';
-        } catch (error) {
-            console.error('Erro ao buscar status da transação:', error);
-            return 'PENDING';
-        }
-    };
 
     const handleSubmit = async () => {
         const docDigits = onlyDigits(customerDocument);
@@ -127,7 +101,7 @@ export default function Pos({ onConclude }: OrderProps) {
                 amount: amountFloat,
                 installments,
                 payment: amountFloat / parseInt(installments || '1'),
-                callback,
+                callback: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler"
             });
         } else {
             setSnackbar({
@@ -176,7 +150,7 @@ export default function Pos({ onConclude }: OrderProps) {
                     clientName: customerName,
                     clientEmail: customerEmail,
                     paymentBrand: cardBrand,
-                    callbackUrl: callback,
+                    callbackUrl: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler",
                 },
             };
 
