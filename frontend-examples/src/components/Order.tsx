@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {
     Box,
     FormControl,
@@ -32,13 +32,13 @@ type OrderResult = {
 
 type OrderProps = {
     onConclude?: () => void;
-
+    autoSubmitNonce?: number;
     onResultChange?: (r: OrderResult) => void;
     onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED') => void;
     onPaymentChange?: (v: number) => void;
 };
 
-export default function Order({onResultChange, onStatusChange, onPaymentChange,}: OrderProps) {
+export default function Order({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: OrderProps) {
     const {
         amount,
         cardBrand,
@@ -143,6 +143,12 @@ export default function Order({onResultChange, onStatusChange, onPaymentChange,}
             setSnackbar({open: true, severity: 'error', title: ui.title, description: ui.description});
         }
     };
+
+    useEffect(() => {
+        if (autoSubmitNonce && amount && installments) {
+            void handleSubmit();
+        }
+    }, [autoSubmitNonce]);
 
     return (
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>

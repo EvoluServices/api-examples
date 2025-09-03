@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
     Box, FormControl, InputLabel, Select, MenuItem, TextField, Button,
     Snackbar, Alert, AlertColor, Typography,
@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { brands } from '@/components/Brand';
 import { useTransaction } from '@/contexts/TransactionContext';
-import { onlyDigits, isCpfCnpjLenValid } from '@/utils/document';
+import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
 import { parseApiError } from '@/utils/httpErrors';
 import { regexEmail } from '@/utils/regex';
 import axios from 'axios';
@@ -14,14 +14,17 @@ import { getApiConfigFromCookies } from '@/utils/apiConfig';
 import PinpadStatusPoller from '@/components/pinpad/PinpadStatusPoller';
 import type { TxResult } from '@/types/transactions';
 
+
+
 type PinpadProps = {
+    autoSubmitNonce?: number;
     onConclude?: () => void;
     onResultChange?: React.Dispatch<React.SetStateAction<TxResult>>;
     onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
     onPaymentChange?: (v: number) => void;
 };
 
-export default function Pinpad({onConclude, onResultChange, onStatusChange, onPaymentChange,}: PinpadProps) {
+export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: PinpadProps) {
     const {
         amount,
         paymentType,
@@ -145,6 +148,7 @@ export default function Pinpad({onConclude, onResultChange, onStatusChange, onPa
                     value: amount,
                     installments: parseInt(installments || '1'),
                     clientName: customerName,
+                    clientDocument: customerDocument,
                     clientEmail: customerEmail,
                     paymentBrand: cardBrand,
                     callbackUrl:
@@ -152,7 +156,7 @@ export default function Pinpad({onConclude, onResultChange, onStatusChange, onPa
                 },
             };
             const headers = { bearer: token, 'Content-Type': 'application/json' };
-            const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
+            const res = await axios.post(`/api/proxy/pos/remote/transaction`, payload, { headers });
             return res.data;
         } catch (error) {
             const { title, description } = parseApiError(error);
@@ -161,14 +165,20 @@ export default function Pinpad({onConclude, onResultChange, onStatusChange, onPa
         }
     };
 
-    const handleClear = () => {
-        setCustomerName('');
-        setCustomerDocument('');
-        setCustomerEmail('');
-        setTouchedName(false);
-        setTouchedDocument(false);
-        setTouchedEmail(false);
-    };
+    useEffect(() => {
+        if (!autoSubmitNonce) return;
+
+        const docOk = isCpfCnpjLenValid(onlyDigits(customerDocument));
+        const emailOk = regexEmail.test(customerEmail);
+        const nameOk = !!(customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName));
+        const baseOk =
+            (paymentType === 'debit' && !!cardBrand) ||
+            (paymentType === 'credit' && !!cardBrand && !!installments);
+
+        if (baseOk && nameOk && docOk && emailOk) {
+            void handleSubmit();
+        }
+    }, [autoSubmitNonce]);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
@@ -286,10 +296,15 @@ export default function Pinpad({onConclude, onResultChange, onStatusChange, onPa
                     />
                     <TextField
                         label="Documento"
-                        value={customerDocument}
-                        onChange={(e) => setCustomerDocument(e.target.value)}
+                        value={maskCpfCnpj(customerDocument)}
+                        onChange={(e) => {
+                            const raw = onlyDigits(e.target.value);
+                            const clamped = raw.slice(0, 14);
+                            setCustomerDocument(clamped);
+                        }}
                         onBlur={() => setTouchedDocument(true)}
                         error={touchedDocument && !isCpfCnpjLenValid(onlyDigits(customerDocument))}
+
                         sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
                     />
                     <TextField

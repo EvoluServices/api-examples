@@ -85,8 +85,6 @@ Preencha os dados do cliente:
 
 * Documento: (CPF/CNPJ) — o app formata automaticamente CPF (11 dígitos) em `000.000.000-00` e CNPJ (14 dígitos) em `00.000.000/0000-00`
 
-* Telefone:
-
 * Email:
 
 Clique em Finalizar.
@@ -103,7 +101,7 @@ Exibe orientação para revisar os dados/usar outro método de pagamento.
 
 #### Pendente / Abortada
 Exibe mensagem de “Venda criada com sucesso” e o link de pagamento (quando aplicável).
-O app realiza polling do status a cada 30s, por até 5 minutos.
+O app realiza polling do status a cada 10s, por até 5 minutos.
 
 ####  Erro Genérico
 Exibe mensagem de erro e a orientação “Entre em contato com o suporte”.
@@ -124,4 +122,4 @@ Erro de rede/LFS ao clonar: tente `git clone --depth 1 --filter=blob:none <repo>
 
 ## Licença
 
-Uso interno/público
+Uso Público

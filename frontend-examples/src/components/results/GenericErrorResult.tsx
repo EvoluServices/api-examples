@@ -1,11 +1,29 @@
-import { Box, Typography, Paper, Grid, Button } from '@mui/material';
+// components/results/GenericErrorResult.tsx
+import { Box, Typography, Paper, Button } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
-export default function GenericErrorResult() {
+type GenericErrorResultProps = {
+    onConclude?: () => void;
+    title?: string;
+    helperText?: React.ReactNode;
+};
+
+export default function GenericErrorResult({
+                                               onConclude,
+                                               title = 'Erro na Transação',
+                                               helperText = (
+                                                   <>
+                                                       Entre em contato com o suporte ou tente novamente em alguns minutos.
+                                                   </>
+                                               ),
+                                           }: GenericErrorResultProps) {
     return (
         <Box
             sx={{
+                ml: 2,
                 width: '100%',
+                height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -13,57 +31,110 @@ export default function GenericErrorResult() {
                 px: 2,
             }}
         >
-            <Box
-                sx={{
-                    maxWidth: 500,
-                    width: '100%',
-                    textAlign: 'center',
-                }}
-            >
-                <Box>
-                    <ErrorOutlineIcon sx={{ fontSize: 56, color: '#ED6C02', mb: 0 }} />
-                </Box>
-
-                <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    sx={{ color: '#ED6C02', textTransform: 'uppercase', letterSpacing: '1px', mb: 1 }}
-                >
-                    Erro na Transação
-                </Typography>
-
-                <Typography
-                    variant="body2"
+            <Box sx={{ maxWidth: 900, width: '100%' }}>
+                <Paper
+                    elevation={2}
                     sx={{
-                        color: '#5a646e',
-                        lineHeight: "24px",
-                        fontWeight: 700,
-                        mb: 2
-                    }}
-                    gutterBottom
-                >
-                    Ocorreu um erro inesperado ao processar a transação.
-                    Entre em contato com o suporte para mais informações.
-                </Typography>
-
-                <Button
-                    variant="outlined"
-                    sx={{
-                        borderRadius: '16px',
-                        textTransform: 'uppercase',
-                        fontWeight: 'bold',
                         bgcolor: '#ED6C02',
+                        backgroundImage: 'none',
                         color: '#FFF',
-                        minWidth: '120px',
-                        boxShadow: 'none',
-                        border: '1px solid #ccc',
-                        px: 4,
-                        py: 1.5,
+                        p: { xs: 3, md: 5 },
+                        borderRadius: 3,
                     }}
                 >
-                    Contatar Suporte
-                </Button>
+                    <Grid container spacing={4} alignItems="center">
+                        {/* COLUNA ESQUERDA */}
+                        <Grid size={{ xs: 12, md: 5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: { xs: 2, md: 0 } }}>
+                                <ErrorOutlineIcon sx={{ fontSize: 48 }} />
+                                <Typography
+                                    variant="h4"
+                                    sx={{
+                                        fontWeight: 800,
+                                        lineHeight: 1.2,
+                                        textTransform: 'none',
+                                    }}
+                                >
+                                    {title}
+                                </Typography>
+                            </Box>
+                        </Grid>
 
+                        {/* COLUNA DIREITA */}
+                        <Grid size={{ xs: 12, md: 7 }}>
+                            <Box sx={{ display: 'grid', gap: 2 }}>
+                                <Typography
+                                    sx={{
+                                        fontSize: 16,
+                                        fontWeight: 700,
+                                        color: 'rgba(255,255,255,0.95)',
+                                    }}
+                                >
+                                    Erro inesperado ao processar a transação:
+                                </Typography>
+
+                                <Typography
+                                    sx={{
+                                        fontSize: 15,
+                                        fontWeight: 600,
+                                        color: 'rgba(255,255,255,0.9)',
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    {helperText}
+                                </Typography>
+
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        gap: 2,
+                                        justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                                        mt: 1,
+                                    }}
+                                >
+                                    <Button
+                                        variant="outlined"
+                                        component="a"
+                                        href="https://api.whatsapp.com/send/?phone=551130148660"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        sx={{
+                                            borderRadius: '16px',
+                                            textTransform: 'uppercase',
+                                            fontWeight: 'bold',
+                                            color: '#FFF',
+                                            borderColor: 'rgba(255,255,255,0.7)',
+                                            px: 3,
+                                            py: 1.2,
+                                            '&:hover': { borderColor: '#FFF', backgroundColor: 'rgba(255,255,255,0.08)' },
+                                        }}
+                                    >
+                                        Contatar Suporte
+                                    </Button>
+
+                                    <Button
+                                        variant="contained"
+                                        onClick={onConclude}
+                                        sx={{
+                                            borderRadius: '16px',
+                                            textTransform: 'uppercase',
+                                            fontWeight: 'bold',
+                                            bgcolor: '#0a63c7',
+                                            color: '#FFF',
+                                            minWidth: 160,
+                                            py: 1.5,
+                                            px: 4,
+                                            boxShadow: 'none',
+                                            '&:hover': { bgcolor: '#0071EB' },
+                                        }}
+                                    >
+                                        Concluir
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </Paper>
             </Box>
         </Box>
     );

@@ -14,6 +14,7 @@ import {buildBasicAuthHeader, getApiConfigFromCookies} from "@/utils/apiConfig";
 import axios from "axios";
 import EmptyStateMessage from "@/components/EmptyStateMessage";
 import PinpadResult from "@/components/pinpad/PinpadResult";
+import PosResult from "@/components/pos/PosResult";
 
 type TxResult = {
     payUrl?: string;
@@ -36,8 +37,7 @@ export default function TransactionsPage() {
     const [trxResult, setTrxResult] = useState<TxResult>(null);
     const [trxStatus, setTrxStatus] =
         useState<'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'PROCESSING' | 'ABORTED' | 'ERROR'>('PENDING');
-
-
+    const [autoSubmitNonce, setAutoSubmitNonce] = useState(0);
     const [payment, setPayment] = useState<number>(0);
     const resetSaleUI = () => {
         resetTransaction();
@@ -101,7 +101,7 @@ export default function TransactionsPage() {
         };
 
         poll();
-        const timer = setInterval(poll, 10000);
+        const timer = setInterval(poll, 10000); //Executa a cada 10 segundos
         return () => clearInterval(timer);
     }, [trxResult?.uuid, trxStatus, selectedProduct]);
 
@@ -140,6 +140,10 @@ export default function TransactionsPage() {
                                         setPaymentMethods(false);
                                         customResetTransaction();
                                         setSelectedProduct(null);
+
+                                        setTrxResult(null);
+                                        setTrxStatus('PENDING');
+                                        setPayment(0);
                                     }
                                 }}
                             />
@@ -214,6 +218,7 @@ export default function TransactionsPage() {
                     {selectedProduct === 'order' && (
                         <Order
                             onConclude={resetSaleUI}
+                            autoSubmitNonce={autoSubmitNonce}
                             onResultChange={setTrxResult}
                             onStatusChange={setTrxStatus}
                             onPaymentChange={setPayment}
@@ -221,6 +226,7 @@ export default function TransactionsPage() {
                     )}
                     {selectedProduct === 'pinpad' && (
                         <Pinpad
+                            autoSubmitNonce={autoSubmitNonce}
                             onConclude={resetSaleUI}
                             onResultChange={setTrxResult}
                             onStatusChange={setTrxStatus}
@@ -230,6 +236,10 @@ export default function TransactionsPage() {
                     {selectedProduct === 'pos' && (
                         <POS
                             onConclude={resetSaleUI}
+                            autoSubmitNonce={autoSubmitNonce}
+                            onResultChange={setTrxResult}
+                            onStatusChange={setTrxStatus}
+                            onPaymentChange={setPayment}
                         />
                     )}
                 </Box>
@@ -260,17 +270,31 @@ export default function TransactionsPage() {
                                     />
                                 )}
 
-                                {trxStatus === 'DISAPPROVED' && <RejectedResult/>}
+                                {trxStatus === 'DISAPPROVED' && <RejectedResult
+                                    onConclude={resetSaleUI}
+                                    onRetry={() => {
+                                        setTrxResult(null);
+                                        setTrxStatus('PENDING');
+                                        setPayment(0);
+                                        setAutoSubmitNonce(n => n + 1);
+                                    }}
+                                />}
 
                                 {trxStatus === 'PROCESSING' && selectedProduct === 'pinpad' && (
                                     <PinpadResult onConclude={resetSaleUI}/>
+                                )}
+
+                                {trxStatus === 'PROCESSING' && selectedProduct === 'pos' && (
+                                    <PosResult onConclude={resetSaleUI}/>
                                 )}
 
                                 {(trxStatus === 'PENDING') && (
                                     <OrderLinkResult payUrl={trxResult?.payUrl}/>
                                 )}
 
-                                {trxStatus === 'ABORTED' && <GenericErrorResult/>}
+                                {trxStatus === 'ABORTED' && <GenericErrorResult
+                                    onConclude={resetSaleUI}
+                                />}
                             </>
                         ) : (
                             selectedProduct ? <EmptyStateMessage product={selectedProduct as ProductKey}/> : null
