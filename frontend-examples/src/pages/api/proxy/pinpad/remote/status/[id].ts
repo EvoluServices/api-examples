@@ -1,4 +1,3 @@
-// pages/api/proxy/pinpad/remote/status/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
 
@@ -13,14 +12,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
         );
         res.status(200).json(response.data);
+
     } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
-            console.error("❌ Erro na chamada Axios:", error.response?.data || error.message);
+            const msg = error.response?.data?.message || error.message;
+
+            if (msg === 'Callback not found') {
+                console.warn(`Aguardando callback do Pinpad ainda não processado para ID: ${id}`);
+                res.status(204).end();
+                return;
+            }
+
+            console.error(`❌ Erro na chamada Axios para o status do Pinpad [${id}]:`, msg);
             res.status(error.response?.status || 500).json({
-                message: error.response?.data?.message || 'Erro desconhecido',
+                message: msg || 'Erro desconhecido',
             });
+
         } else {
-            console.error("❌ Erro inesperado:", error);
+            console.error("❌ Erro inesperado ao consultar status do Pinpad:", error);
             res.status(500).json({ message: 'Erro interno inesperado' });
         }
     }

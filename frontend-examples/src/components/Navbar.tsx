@@ -24,16 +24,24 @@ const Navbar = ({ pages }: NavbarProps) => {
                             <Button
                                 disableRipple
                                 sx={{
-                                    borderBottom: isActive(page.href) ? '2px solid #fff' : 'none',
+                                    borderBottom: isActive(page.href) ? '2px solid #fff' : '2px solid transparent',
                                     borderRadius: 0,
                                     textTransform: 'none',
+                                    opacity: isActive(page.href) ? 1 : 0.8,
+                                    transition: 'color 0.3s ease, border-bottom 0.3s ease, opacity 0.3s',
+                                    '&:hover': {
+                                        opacity: 1,
+                                        borderBottom: '2px solid #fff',
+                                    },
                                 }}
                             >
                                 <Typography
                                     sx={{
                                         color: '#FFF',
                                         fontSize: '16px',
-                                        fontWeight: 700,
+                                        fontWeight: 600,
+                                        fontFamily: 'Inter, Roboto, sans-serif',
+                                        letterSpacing: '0.5px',
                                     }}
                                 >
                                     {page.name}

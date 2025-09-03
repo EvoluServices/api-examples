@@ -13,7 +13,7 @@ type SuccessResultProps = {
     onConclude?: () => void;
 };
 
-export default function OrderSuccessResult(
+export default function SuccessResult(
     {customerName, customerDocument, amount, installments, payment, onConclude,}: SuccessResultProps) {
     return (
         <Box

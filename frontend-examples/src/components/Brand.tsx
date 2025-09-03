@@ -32,7 +32,7 @@ export const brands: Brand[] = [
     type: 'credit',
   },
   {
-    label: 'American Express',
+    label: 'Amex',
     value: 'AMEX_CREDITO',
     images: '/brands/american-express.png',
     type: 'credit',

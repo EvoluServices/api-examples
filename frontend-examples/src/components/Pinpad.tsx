@@ -1,27 +1,27 @@
-import {useEffect, useState} from 'react';
+import React, { useState } from 'react';
 import {
-    Box,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    TextField,
-    Button, Snackbar, Alert, AlertColor, Typography,
+    Box, FormControl, InputLabel, Select, MenuItem, TextField, Button,
+    Snackbar, Alert, AlertColor, Typography,
+    Grid
 } from '@mui/material';
-import {brands} from '@/components/Brand';
-import {useTransaction} from '@/contexts/TransactionContext';
-import {maskCpfCnpj, onlyDigits, isCpfCnpjLenValid} from '@/utils/document';
-import {parseApiError} from '@/utils/httpErrors';
-import {regexEmail} from '@/utils/regex';
-import axios from "axios";
-import {getApiConfigFromCookies} from "@/utils/apiConfig";
-import PinpadStatusPoller from "@/components/PinpadStatusPoller";
+import { brands } from '@/components/Brand';
+import { useTransaction } from '@/contexts/TransactionContext';
+import { onlyDigits, isCpfCnpjLenValid } from '@/utils/document';
+import { parseApiError } from '@/utils/httpErrors';
+import { regexEmail } from '@/utils/regex';
+import axios from 'axios';
+import { getApiConfigFromCookies } from '@/utils/apiConfig';
+import PinpadStatusPoller from '@/components/pinpad/PinpadStatusPoller';
+import type { TxResult } from '@/types/transactions';
 
-type OrderProps = {
+type PinpadProps = {
     onConclude?: () => void;
+    onResultChange?: React.Dispatch<React.SetStateAction<TxResult>>;
+    onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
+    onPaymentChange?: (v: number) => void;
 };
 
-export default function Pinpad({onConclude}: OrderProps) {
+export default function Pinpad({onConclude, onResultChange, onStatusChange, onPaymentChange,}: PinpadProps) {
     const {
         amount,
         paymentType,
@@ -37,7 +37,6 @@ export default function Pinpad({onConclude}: OrderProps) {
         customerEmail,
         setCustomerEmail,
         clearCustomerData,
-        resetTransaction,
     } = useTransaction();
 
     const amountFloat = parseFloat(amount || '0');
@@ -51,19 +50,18 @@ export default function Pinpad({onConclude}: OrderProps) {
 
     const filteredBrands = brands.filter((b) => b.type === paymentType);
 
-    // estados touched
     const [touchedName, setTouchedName] = useState(false);
     const [touchedDocument, setTouchedDocument] = useState(false);
     const [touchedEmail, setTouchedEmail] = useState(false);
 
-    const [pinpadResult, setPinpadResult] = useState<any>(null);
+    const [pinpadTxId, setPinpadTxId] = useState<string | null>(null);
 
     const [snackbar, setSnackbar] = useState({
         open: false,
         severity: 'error' as AlertColor,
         title: '',
         description: '',
-    })
+    });
 
     const handleSubmit = async () => {
         const docDigits = onlyDigits(customerDocument);
@@ -75,12 +73,11 @@ export default function Pinpad({onConclude}: OrderProps) {
             setTouchedName(true);
             setTouchedDocument(true);
             setTouchedEmail(true);
-
             setSnackbar({
                 open: true,
                 severity: 'error',
-                title: 'Campos ausentes ou não preenchidos',
-                description: 'Preencha todos os campos corretamente antes de finalizar.'
+                title: 'Campos ausentes ou inválidos',
+                description: 'Preencha todos os campos corretamente antes de finalizar.',
             });
             return;
         }
@@ -91,54 +88,50 @@ export default function Pinpad({onConclude}: OrderProps) {
                 open: true,
                 severity: 'error',
                 title: 'Erro ao obter o token.',
-                description: 'Verifique suas credenciais.'
+                description: 'Verifique suas credenciais.',
             });
             return;
         }
 
         const response = await postRemoteTransaction(token);
         if (response?.success === 'true') {
-            setPinpadResult({
-                transactionId: response.transactionId,
+            const txId = response.transactionId as string;
+
+            setPinpadTxId(txId);
+            onResultChange?.({
+                uuid: txId,
                 customerName,
                 customerDocument,
-                amount: amountFloat,
-                installments,
-                payment: amountFloat / parseInt(installments || '1'),
-                callback: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler"
+                amount: amountFloat.toFixed(2),
+                installments
             });
+            onStatusChange?.('PROCESSING');
+            onPaymentChange?.(0);
 
         } else {
             setSnackbar({
                 open: true,
                 severity: 'error',
                 title: 'Erro ao criar a transação.',
-                description: 'Verifique suas credenciais.'
+                description: 'Tente novamente.',
             });
         }
     };
 
     const fetchBearerToken = async () => {
         try {
-            const config = getApiConfigFromCookies(); 
-
+            const config = getApiConfigFromCookies();
             const body = {
                 auth: {
                     username: config.values.apiKey,
                     apiKey: config.values.apiSecret,
                 },
             };
-
-            const response = await axios.post(`/api/proxy/pinpad/remote/token`, body);
-            return response.data?.Bearer || null;
+            const res = await axios.post(`/api/proxy/pinpad/remote/token`, body);
+            return res.data?.Bearer || null;
         } catch (err) {
-            const {title, description} = parseApiError(err);
-            setSnackbar({
-                open: true,
-                severity: 'error',
-                title,
-                description,
-            });
+            const { title, description } = parseApiError(err);
+            setSnackbar({ open: true, severity: 'error', title, description });
             return null;
         }
     };
@@ -146,7 +139,6 @@ export default function Pinpad({onConclude}: OrderProps) {
     const postRemoteTransaction = async (token: string) => {
         try {
             const config = getApiConfigFromCookies();
-
             const payload = {
                 transaction: {
                     merchantId: config.values.merchantKey,
@@ -155,25 +147,16 @@ export default function Pinpad({onConclude}: OrderProps) {
                     clientName: customerName,
                     clientEmail: customerEmail,
                     paymentBrand: cardBrand,
-                    callbackUrl: "https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler",
+                    callbackUrl:
+                        'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
                 },
             };
-
-            const headers = {
-                bearer: token,
-                'Content-Type': 'application/json',
-            };
-
-            const response = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, {headers});
-            return response.data;
+            const headers = { bearer: token, 'Content-Type': 'application/json' };
+            const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
+            return res.data;
         } catch (error) {
-            const {title, description} = parseApiError(error);
-            setSnackbar({
-                open: true,
-                severity: 'error',
-                title,
-                description,
-            });
+            const { title, description } = parseApiError(error);
+            setSnackbar({ open: true, severity: 'error', title, description });
             return null;
         }
     };
@@ -188,198 +171,233 @@ export default function Pinpad({onConclude}: OrderProps) {
     };
 
     return (
-        <Box sx={{display: 'flex', flexDirection: 'row', gap: 4, mt: 2}}>
-            {/* Coluna esquerda: campos do pedido */}
-            <Box sx={{flex: 1, display: 'flex', flexDirection: 'column', gap: 2}}>
-                <Box sx={{display: 'flex', flexDirection: 'row', gap: 2}}>
-                    {/* Payment Type */}
-                    <Box sx={{width: '20%', minWidth: 110}}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+
+            <Grid container spacing={2}>
+
+                <Grid size={{ xs: 12, md: 3 }}>
+                    <FormControl fullWidth>
+                        <InputLabel id="payment-type-label">Modalidade</InputLabel>
+                        <Select
+                            labelId="payment-type-label"
+                            value={paymentType || ''}
+                            label="Modalidade"
+                            sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                            onChange={(e) => {
+                                setPaymentType(e.target.value as 'debit' | 'credit');
+                                setCardBrand('');
+                                setInstallments('');
+                                clearCustomerData();
+                                setCustomerName('');
+                                setCustomerDocument('');
+                                setCustomerEmail('');
+                                setTouchedName(false);
+                                setTouchedDocument(false);
+                                setTouchedEmail(false);
+                            }}
+                        >
+                            <MenuItem value="credit">Crédito</MenuItem>
+                            <MenuItem value="debit">Débito</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Grid>
+
+                {/* Bandeira (mostra se houver modalidade) */}
+                {showBrand && (
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <FormControl fullWidth>
-                            <InputLabel id="payment-type-label">Função</InputLabel>
+                            <InputLabel id="card-brand-label">Bandeira</InputLabel>
                             <Select
-                                sx={{bgcolor: '#fff'}}
-                                labelId="payment-type-label"
-                                value={paymentType || ''}
+                                labelId="card-brand-label"
+                                value={cardBrand || ''}
+                                label="Bandeira"
+                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
                                 onChange={(e) => {
-                                    setPaymentType(e.target.value);
-                                    setCardBrand('');
+                                    setCardBrand(e.target.value as string);
                                     setInstallments('');
                                     clearCustomerData();
-                                    handleClear(); // limpa touched
+                                    setCustomerName('');
+                                    setCustomerDocument('');
+                                    setCustomerEmail('');
+                                    setTouchedName(false);
+                                    setTouchedDocument(false);
+                                    setTouchedEmail(false);
                                 }}
                             >
-                                <MenuItem value="debit">Débito</MenuItem>
-                                <MenuItem value="credit">Crédito</MenuItem>
+                                {filteredBrands.map((b) => (
+                                    <MenuItem key={b.value} value={b.value}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <img src={b.images} alt={b.label} style={{ width: 24, height: 16, marginRight: 8 }} />
+                                            {b.label}
+                                        </Box>
+                                    </MenuItem>
+                                ))}
                             </Select>
                         </FormControl>
-                    </Box>
+                    </Grid>
+                )}
 
-                    {/* Bandeira */}
-                    {showBrand && (
-                        <Box sx={{width: '36%', minWidth: 180, maxWidth: 180}}>
-                            <FormControl fullWidth>
-                                <InputLabel id="card-brand-label">Bandeira</InputLabel>
-                                <Select
-                                    sx={{bgcolor: '#fff'}}
-                                    labelId="card-brand-label"
-                                    value={cardBrand || ''}
-                                    onChange={(e) => {
-                                        setCardBrand(e.target.value);
-                                        setInstallments('');
-                                        clearCustomerData();
-                                        handleClear();
-                                    }}
-                                >
-                                    {filteredBrands.map((b) => (
-                                        <MenuItem key={b.value} value={b.value}>
-                                            <Box sx={{display: 'flex', alignItems: 'center'}}>
-                                                <img
-                                                    src={b.images}
-                                                    alt={b.label}
-                                                    style={{width: 24, height: 16, marginRight: 8}}
-                                                />
-                                                {b.label}
-                                            </Box>
+                {/* Parcelamento (só no crédito e com bandeira escolhida) */}
+                {showInstallments && (
+                    <Grid size={{ xs: 12, md: 5 }}>
+                        <FormControl fullWidth>
+                            <InputLabel id="installments-label">Parcelamento</InputLabel>
+                            <Select
+                                labelId="installments-label"
+                                value={installments}
+                                label="Parcelamento"
+                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                                onChange={(e) => {
+                                    setInstallments(e.target.value as string);
+                                    clearCustomerData();
+                                    setCustomerName('');
+                                    setCustomerDocument('');
+                                    setCustomerEmail('');
+                                    setTouchedName(false);
+                                    setTouchedDocument(false);
+                                    setTouchedEmail(false);
+                                }}
+                            >
+                                {[...Array(24)].map((_, i) => {
+                                    const qty = i + 1;
+                                    const per = amountFloat > 0 ? amountFloat / qty : 0;
+                                    return (
+                                        <MenuItem key={qty} value={String(qty)}>
+                                            {qty}x de {per.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Box>
-                    )}
-
-                    {/* Parcelamento só no crédito */}
-                    {showInstallments && (
-                        <Box sx={{width: '36%', minWidth: 180, maxWidth: 180}}>
-                            <FormControl fullWidth>
-                                <InputLabel id="installments-label">Parcelamento</InputLabel>
-                                <Select
-                                    sx={{bgcolor: '#fff'}}
-                                    labelId="installments-label"
-                                    value={installments}
-                                    onChange={(e) => {
-                                        setInstallments(e.target.value);
-                                        clearCustomerData();
-                                        handleClear();
-                                    }}
-                                >
-                                    {[...Array(24)].map((_, i) => {
-                                        const count = i + 1;
-                                        const perInstallment = amountFloat / count;
-                                        return (
-                                            <MenuItem key={count} value={String(count)}>
-                                                {count}x de{' '}
-                                                {perInstallment.toLocaleString('pt-BR', {
-                                                    style: 'currency',
-                                                    currency: 'BRL',
-                                                })}
-                                            </MenuItem>
-                                        );
-                                    })}
-                                </Select>
-                            </FormControl>
-                        </Box>
-                    )}
-                </Box>
-
-                {/* Campos do Cliente */}
-                {showCustomerFields && (
-                    <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, minWidth: 500}}>
-                        <TextField
-                            label="Nome"
-                            sx={{backgroundColor: '#FFF'}}
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            onBlur={() => setTouchedName(true)}
-                            error={touchedName && (!customerName || !/^[A-Za-zÀ-ÿ\s]+$/.test(customerName))}
-                        />
-
-                        <TextField
-                            label="Documento"
-                            sx={{bgcolor: '#fff'}}
-                            value={customerDocument}
-                            onChange={(e) => setCustomerDocument(maskCpfCnpj(e.target.value))}
-                            onBlur={() => setTouchedDocument(true)}
-                            error={touchedDocument && !isCpfCnpjLenValid(onlyDigits(customerDocument))}
-                        />
-
-                        <TextField
-                            label="Email"
-                            sx={{bgcolor: '#fff'}}
-                            value={customerEmail}
-                            onChange={(e) => setCustomerEmail(e.target.value)}
-                            onBlur={() => setTouchedEmail(true)}
-                            error={touchedEmail && !regexEmail.test(customerEmail)}
-                        />
-                    </Box>
+                                    );
+                                })}
+                            </Select>
+                        </FormControl>
+                    </Grid>
                 )}
+            </Grid>
 
-                {showSubmitButton && (
-                    <Box sx={{display: 'flex', gap: 2, mt: 2}}>
-                        <Button
-                            variant="contained"
-                            sx={{
-                                borderRadius: '16px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                                backgroundColor: '#FFF',
-                                color: '#0071EB',
-                                minWidth: '120px',
-                                boxShadow: 'none',
-                                border: '1px solid #ccc',
-                            }}
-                            onClick={handleClear}
-                        >
-                            Limpar
-                        </Button>
-
-                        <Button
-                            variant="contained"
-                            sx={{
-                                minWidth: '365px',
-                                backgroundColor: '#0071EB',
-                                color: '#FFF',
-                                fontWeight: 700,
-                                fontSize: '16px',
-                                textTransform: 'none',
-                                borderRadius: '16px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 1,
-                                paddingY: '10px',
-                                '&:hover': {backgroundColor: '#0071EB'},
-                            }}
-                            onClick={handleSubmit}
-                        >
-                            Finalizar
-                        </Button>
-                    </Box>
-                )}
-            </Box>
-
-            {/* Coluna da direita: resultado */}
-            {pinpadResult && (
-                <Box sx={{ml: 20, height: 'fit-content', alignSelf: 'flex-start'}}>
-                    <PinpadStatusPoller transactionId={pinpadResult.transactionId}/>
+            {/* Campos do cliente */}
+            {showCustomerFields && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <TextField
+                        label="Nome"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        onBlur={() => setTouchedName(true)}
+                        error={touchedName && (!customerName || !/^[A-Za-zÀ-ÿ\s]+$/.test(customerName))}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                    />
+                    <TextField
+                        label="Documento"
+                        value={customerDocument}
+                        onChange={(e) => setCustomerDocument(e.target.value)}
+                        onBlur={() => setTouchedDocument(true)}
+                        error={touchedDocument && !isCpfCnpjLenValid(onlyDigits(customerDocument))}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                    />
+                    <TextField
+                        label="Email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        onBlur={() => setTouchedEmail(true)}
+                        error={touchedEmail && !regexEmail.test(customerEmail)}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                    />
                 </Box>
+            )}
+
+            {/* Botões */}
+            {showSubmitButton && (
+                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                    <Button
+                        variant="contained"
+                        sx={{
+                            borderRadius: '16px',
+                            textTransform: 'uppercase',
+                            fontWeight: 'bold',
+                            backgroundColor: '#FFF',
+                            color: '#0071EB',
+                            minWidth: 120,
+                            boxShadow: 'none',
+                            border: '1px solid #ccc',
+                        }}
+                        onClick={() => {
+                            setCustomerName('');
+                            setCustomerDocument('');
+                            setCustomerEmail('');
+                            setTouchedName(false);
+                            setTouchedDocument(false);
+                            setTouchedEmail(false);
+                        }}
+                    >
+                        Limpar
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        sx={{
+                            flex: 1,
+                            backgroundColor: '#0071EB',
+                            color: '#FFF',
+                            fontWeight: 700,
+                            fontSize: '16px',
+                            textTransform: 'none',
+                            borderRadius: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
+                            py: '10px',
+                            '&:hover': { backgroundColor: '#0071EB' },
+                        }}
+                        onClick={handleSubmit}
+                    >
+                        Finalizar
+                    </Button>
+                </Box>
+            )}
+
+            {/* Poller sem UI (emite callbacks para o pai) */}
+            {pinpadTxId && (
+                <PinpadStatusPoller
+                    transactionId={pinpadTxId}
+                    onStatusChange={(s) => onStatusChange?.(s)}
+                    onPaymentChange={(v) => onPaymentChange?.(v)}
+                    onApprovedData={(d) => {
+                        onResultChange?.((prev) =>
+                            prev
+                                ? {
+                                    ...prev,
+                                    customerName: d.customerName,
+                                    customerDocument: d.customerDocument,
+                                    amount: d.amount.toFixed(2),
+                                    installments: d.installments,
+                                }
+                                : {
+                                    uuid: pinpadTxId,
+                                    customerName: d.customerName,
+                                    customerDocument: d.customerDocument,
+                                    amount: d.amount.toFixed(2),
+                                    installments: d.installments,
+                                }
+                        );
+                    }}
+                />
             )}
 
             {/* Snackbar */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={5000}
-                onClose={() => setSnackbar((prev) => ({...prev, open: false}))}
-                anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+                onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
                 <Alert
-                    onClose={() => setSnackbar((prev) => ({...prev, open: false}))}
+                    onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
                     severity={snackbar.severity as AlertColor}
-                    sx={{width: '100%'}}
+                    sx={{ width: '100%' }}
                 >
                     <Typography variant="subtitle1" fontWeight="bold">
                         {snackbar.title}
                     </Typography>
-                    <Typography sx={{whiteSpace: 'pre-line'}} variant="body2">
+                    <Typography sx={{ whiteSpace: 'pre-line' }} variant="body2">
                         {snackbar.description}
                     </Typography>
                 </Alert>

@@ -252,6 +252,8 @@ export default function Order({onResultChange, onStatusChange, onPaymentChange,}
                         onClick={() => {
                             setCustomerName('');
                             setCustomerDocument('');
+                            setNameTouched(false);
+                            setDocTouched(false);
                         }}
                     >
                         Limpar

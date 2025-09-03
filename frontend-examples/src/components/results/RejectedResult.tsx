@@ -1,7 +1,7 @@
 import { Box, Typography, Paper, Grid, Button } from '@mui/material';
 import CancelIcon from '@mui/icons-material/Cancel';
 
-export default function OrderRejectedResult() {
+export default function RejectedResult() {
     return (
         <Box
             sx={{

@@ -4,24 +4,26 @@ import CurrencyInput from '@/components/CurrencyInput';
 import Pinpad from '@/components/Pinpad';
 import POS from '@/components/Pos';
 import Order from '@/components/Order';
-import OrderSuccessResult from '@/components/order/OrderSuccessResult';
-import OrderRejectedResult from '@/components/order/OrderRejectedResult';
-import OrderGenericErrorResult from '@/components/order/OrderGenericErrorResult';
+import SuccessResult from '@/components/results/SuccessResult';
+import RejectedResult from '@/components/results/RejectedResult';
+import GenericErrorResult from '@/components/results/GenericErrorResult';
 import {useTransaction} from '@/contexts/TransactionContext';
 import {Store, CreditCard, Link as LinkIcon} from 'lucide-react';
 import OrderLinkResult from "@/components/order/OrderLinkResult";
 import {buildBasicAuthHeader, getApiConfigFromCookies} from "@/utils/apiConfig";
 import axios from "axios";
 import EmptyStateMessage from "@/components/EmptyStateMessage";
+import PinpadResult from "@/components/pinpad/PinpadResult";
 
-type OrderResult = {
-    payUrl: string;
+type TxResult = {
+    payUrl?: string;
     uuid: string;
     customerName?: string;
     customerDocument?: string;
     amount?: string;
     installments?: string;
 } | null;
+
 
 type ProductKey = 'order' | 'pinpad' | 'pos';
 
@@ -31,9 +33,11 @@ export default function TransactionsPage() {
     const [paymentMethods, setPaymentMethods] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ProductKey | null>(null);
     const {setAmount, resetTransaction, customResetTransaction} = useTransaction();
-    const [orderResult, setOrderResult] = useState<OrderResult>(null);
-    const [orderStatus, setOrderStatus]
-            = useState<'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'PROCESSING' | 'ABORTED'>('PENDING');
+    const [trxResult, setTrxResult] = useState<TxResult>(null);
+    const [trxStatus, setTrxStatus] =
+        useState<'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'PROCESSING' | 'ABORTED' | 'ERROR'>('PENDING');
+
+
     const [payment, setPayment] = useState<number>(0);
     const resetSaleUI = () => {
         resetTransaction();
@@ -41,8 +45,8 @@ export default function TransactionsPage() {
         setRawValue(0);
         setPaymentMethods(false);
         setSelectedProduct(null);
-        setOrderResult(null);
-        setOrderStatus('PENDING');
+        setTrxResult(null);
+        setTrxStatus('PENDING');
         setPayment(0);
     };
 
@@ -79,37 +83,27 @@ export default function TransactionsPage() {
     }
 
     useEffect(() => {
-        if (!orderResult?.uuid || TERMINAL.includes(orderStatus as any)) return;
+        if (!trxResult?.uuid || selectedProduct !== 'order' || TERMINAL.includes(trxStatus as any)) return;
 
-        let cancelled = false;
         const cfg = getApiConfigFromCookies();
         const headers = buildBasicAuthHeader(cfg);
 
         const poll = async () => {
             try {
-                const {data} = await axios.get(`${cfg.url}/api/orders/${orderResult.uuid}`, {headers});
-
+                const {data} = await axios.get(`${cfg.url}/api/orders/${trxResult.uuid}`, {headers});
                 const totalPayments = sumPayments(data);
                 setPayment(totalPayments);
-
                 const newStatus = mapStatus(data);
-                setOrderStatus(newStatus as any);
-
-                if (TERMINAL.includes(newStatus as any)) {
-                    clearInterval(timer);
-                }
-            } catch (e) {
+                setTrxStatus(newStatus as any);
+                if (TERMINAL.includes(newStatus as any)) clearInterval(timer);
+            } catch {
             }
         };
 
         poll();
-        const timer = setInterval(poll, 10000); // 10s
-
-        return () => {
-            cancelled = true;
-            clearInterval(timer);
-        };
-    }, [orderResult?.uuid, orderStatus]);
+        const timer = setInterval(poll, 10000);
+        return () => clearInterval(timer);
+    }, [trxResult?.uuid, trxStatus, selectedProduct]);
 
     function mapStatus(api: any): 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' {
         const s: string = (api?.status || api?.orderStatus || '').toUpperCase();
@@ -121,7 +115,8 @@ export default function TransactionsPage() {
         return 'PENDING';
     }
 
-    const TERMINAL: Array<'APPROVED' | 'DISAPPROVED' | 'ABORTED'> = ['APPROVED', 'DISAPPROVED', 'ABORTED'];
+    const TERMINAL: Array<'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'ERROR'> =
+        ['APPROVED', 'DISAPPROVED', 'ABORTED', 'ERROR'];
 
     return (
         <Box sx={{width: '100%', px: 2, pt: 2, display: 'flex', justifyContent: 'center'}}>
@@ -219,13 +214,24 @@ export default function TransactionsPage() {
                     {selectedProduct === 'order' && (
                         <Order
                             onConclude={resetSaleUI}
-                            onResultChange={setOrderResult}
-                            onStatusChange={setOrderStatus}
+                            onResultChange={setTrxResult}
+                            onStatusChange={setTrxStatus}
                             onPaymentChange={setPayment}
                         />
                     )}
-                    {selectedProduct === 'pinpad' && <Pinpad onConclude={resetSaleUI}/>}
-                    {selectedProduct === 'pos' && <POS onConclude={resetSaleUI}/>}
+                    {selectedProduct === 'pinpad' && (
+                        <Pinpad
+                            onConclude={resetSaleUI}
+                            onResultChange={setTrxResult}
+                            onStatusChange={setTrxStatus}
+                            onPaymentChange={setPayment}
+                        />
+                    )}
+                    {selectedProduct === 'pos' && (
+                        <POS
+                            onConclude={resetSaleUI}
+                        />
+                    )}
                 </Box>
 
                 {/* COLUNA DIREITA */}
@@ -240,31 +246,34 @@ export default function TransactionsPage() {
                     }}
                 >
                     <Box sx={{textAlign: 'center'}}>
-                        {orderResult ? (
+                        {/* COLUNA DIREITA */}
+                        {trxResult ? (
                             <>
-                                {orderStatus === 'APPROVED' && (
-                                    <OrderSuccessResult
-                                        customerName={orderResult.customerName || ''}
-                                        customerDocument={orderResult.customerDocument || ''}
-                                        amount={Number(orderResult.amount || 0)}
-                                        installments={orderResult.installments || '1'}
+                                {trxStatus === 'APPROVED' && (
+                                    <SuccessResult
+                                        customerName={trxResult.customerName || ''}
+                                        customerDocument={trxResult.customerDocument || ''}
+                                        amount={Number(trxResult.amount || 0)}
+                                        installments={trxResult.installments || '1'}
                                         payment={payment}
                                         onConclude={resetSaleUI}
                                     />
                                 )}
 
-                                {orderStatus === 'DISAPPROVED' && <OrderRejectedResult/>}
+                                {trxStatus === 'DISAPPROVED' && <RejectedResult/>}
 
-                                {orderStatus === 'PROCESSING' && <OrderGenericErrorResult/>}
-
-                                {(orderStatus === 'PENDING' || orderStatus === 'ABORTED') && (
-                                    <OrderLinkResult payUrl={orderResult?.payUrl}/>
+                                {trxStatus === 'PROCESSING' && selectedProduct === 'pinpad' && (
+                                    <PinpadResult onConclude={resetSaleUI}/>
                                 )}
+
+                                {(trxStatus === 'PENDING') && (
+                                    <OrderLinkResult payUrl={trxResult?.payUrl}/>
+                                )}
+
+                                {trxStatus === 'ABORTED' && <GenericErrorResult/>}
                             </>
                         ) : (
-                            selectedProduct ? (
-                                <EmptyStateMessage product={selectedProduct as ProductKey}/>
-                            ) : null
+                            selectedProduct ? <EmptyStateMessage product={selectedProduct as ProductKey}/> : null
                         )}
                     </Box>
                 </Box>

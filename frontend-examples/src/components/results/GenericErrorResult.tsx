@@ -1,7 +1,7 @@
 import { Box, Typography, Paper, Grid, Button } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
-export default function PinpadGenericErrorResult() {
+export default function GenericErrorResult() {
     return (
         <Box
             sx={{

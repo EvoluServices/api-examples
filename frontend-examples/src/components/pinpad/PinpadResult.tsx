@@ -1,12 +1,10 @@
-// components/PinpadResult.tsx
 import {Box, Button, Typography} from '@mui/material';
 
 type PinpadResultProp = {
-    transactionId: string;
     onConclude?: () => void;
 }
 
-export default function PinpadResult({transactionId, onConclude}: PinpadResultProp) {
+export default function PinpadResult({onConclude}: PinpadResultProp) {
     return (
         <Box>
             <Typography variant="h5" sx={{color: '#204986', fontWeight: 700}}>
