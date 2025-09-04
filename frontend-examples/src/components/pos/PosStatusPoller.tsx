@@ -28,7 +28,7 @@ export default function PosStatusPoller({transactionId, onStatusChange, onPaymen
                     onPaymentChange?.(totalPayment);
                     onApprovedData?.({
                         customerName: data.data.clientName,
-                        customerDocument: data.data.payments?.[0]?.recipientDocument ?? '',
+                        customerDocument: data.data.clientDocument,
                         amount: parseFloat(data.data.value),
                         installments: String(data.data.paymentQuantity),
                     });
