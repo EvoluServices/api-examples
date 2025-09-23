@@ -13,7 +13,7 @@ export default function Layout({ children }: Props) {
         <TransactionProvider>
             <Navbar
                 pages={[
-                    { href: '/transactions', name: 'Teste' },
+                    { href: '/transactions', name: 'Nova Venda' },
                     { href: '/config', name: 'Configurações' },
                 ]}
             />
