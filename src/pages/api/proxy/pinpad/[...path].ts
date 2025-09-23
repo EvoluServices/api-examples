@@ -1,7 +1,7 @@
-// pages/api/proxy/pos/[...path].ts
+// pages/api/proxy/pinpad/[...path].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
-import { ApiConfig, COOKIE_CFG_KEY, COOKIE_ENV_KEY } from '@/utils/apiConfig';
+import { ApiConfig, COOKIE_CFG_KEY, COOKIE_ENV_KEY } from '../../../../utils/apiConfig';
 
 function getApiConfigFromServerCookies(req: NextApiRequest): ApiConfig {
     const cookieHeader = req.headers.cookie || '';
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const isTokenRequest = fullPath === 'remote/token';
         const bearerToken = req.headers['bearer'];
 
-        console.log('[Proxy POS]');
+        console.log('[Proxy PINPAD]');
         console.log('→ URL:', url);
         console.log('→ Método:', req.method);
         console.log('→ Token Bearer:', bearerToken);
@@ -58,9 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         res.status(result.status).json(result.data);
     } catch (error: any) {
-        console.error('Erro no proxy de POS:', error.message);
+        console.error('Erro no proxy de Pinpad:', error.message);
         const status = error.response?.status || 500;
-        const data = error.response?.data || { error: 'Erro ao processar proxy POS.' };
+        const data = error.response?.data || { error: 'Erro ao processar proxy Pinpad.' };
         res.status(status).json(data);
     }
 }
+

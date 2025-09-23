@@ -1,7 +1,7 @@
 // pages/api/proxy/order/[...path].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
-import { ApiConfig, COOKIE_CFG_KEY, COOKIE_ENV_KEY } from '@/utils/apiConfig';
+import { ApiConfig, COOKIE_CFG_KEY, COOKIE_ENV_KEY } from '../../../../utils/apiConfig';
 
 function getApiConfigFromServerCookies(req: NextApiRequest): ApiConfig {
     const cookieHeader = req.headers.cookie || '';

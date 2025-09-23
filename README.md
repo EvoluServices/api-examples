@@ -16,17 +16,12 @@ O app permite selecionar o ambiente (Desenvolvimento ou Produção), configurar 
 git clone git@github.com:EvoluServices/api-chatbot.git
 ```
 
-## 2) Entrar na pasta do frontend
-```
-cd frontend-examples
-```
-
-## 3) Instalar dependências
+## 2) Instalar dependências
 ```
 npm install
 ```
 
-## 4) Rodar em modo desenvolvimento
+## 3) Rodar em modo desenvolvimento
 ```
 npm run dev
 ```
