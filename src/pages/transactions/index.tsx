@@ -65,8 +65,14 @@ export default function TransactionsPage() {
 
     useEffect(() => {
         if (selectedProduct !== null) {
+            // limpa estados anteriores quando alterna entre Link/Pinpad/POS
             customResetTransaction();
             setPaymentMethods(true);
+            setTrxResult(null);
+            setTrxStatus('PENDING');
+            setPayment(0);
+            // força remontagem dos componentes filhos para zerar estados internos
+            setAutoSubmitNonce((n) => n + 1);
         }
     }, [selectedProduct]);
 
@@ -117,6 +123,19 @@ export default function TransactionsPage() {
 
     const TERMINAL: Array<'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'ERROR'> =
         ['APPROVED', 'DISAPPROVED', 'ABORTED', 'ERROR'];
+
+    const selectProduct = (method: ProductKey) => {
+        // limpa imediatamente antes de trocar o componente
+        customResetTransaction();
+        setTrxResult(null);
+        setTrxStatus('PENDING');
+        setPayment(0);
+        setPaymentMethods(true);
+        // força remontagem dos filhos
+        setAutoSubmitNonce((n) => n + 1);
+        // por último, define o produto selecionado
+        setSelectedProduct(method);
+    };
 
     return (
         <Box sx={{width: '100%', px: 2, pt: 2, display: 'flex', justifyContent: 'center'}}>
@@ -193,7 +212,7 @@ export default function TransactionsPage() {
                                 return (
                                     <Button
                                         key={method}
-                                        onClick={() => setSelectedProduct(method)}
+                                        onClick={() => selectProduct(method)}
                                         disableRipple
                                         sx={{
                                             flex: 1,
@@ -217,6 +236,7 @@ export default function TransactionsPage() {
                     {/* FORMULÁRIOS */}
                     {selectedProduct === 'order' && (
                         <Order
+                            key={`order-${autoSubmitNonce}`}
                             onConclude={resetSaleUI}
                             autoSubmitNonce={autoSubmitNonce}
                             onResultChange={setTrxResult}
@@ -226,6 +246,7 @@ export default function TransactionsPage() {
                     )}
                     {selectedProduct === 'pinpad' && (
                         <Pinpad
+                            key={`pinpad-${autoSubmitNonce}`}
                             autoSubmitNonce={autoSubmitNonce}
                             onConclude={resetSaleUI}
                             onResultChange={setTrxResult}
@@ -235,6 +256,7 @@ export default function TransactionsPage() {
                     )}
                     {selectedProduct === 'pos' && (
                         <POS
+                            key={`pos-${autoSubmitNonce}`}
                             onConclude={resetSaleUI}
                             autoSubmitNonce={autoSubmitNonce}
                             onResultChange={setTrxResult}
@@ -255,7 +277,7 @@ export default function TransactionsPage() {
                         px: 2,
                     }}
                 >
-                    <Box sx={{textAlign: 'center'}}>
+                    <Box key={`${selectedProduct || 'none'}-${autoSubmitNonce}`} sx={{textAlign: 'center'}}>
                         {/* COLUNA DIREITA */}
                         {trxResult ? (
                             <>
