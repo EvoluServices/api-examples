@@ -29,7 +29,6 @@ export default function Login() {
     const [forgotEmail, setForgotEmail] = useState('');
     const [forgotSuccess, setForgotSuccess] = useState('');
 
-    // 👁️ controle do olho mágico
     const [showPassword, setShowPassword] = useState(false);
     const handleClickShowPassword = () => setShowPassword((prev) => !prev);
     const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -47,12 +46,10 @@ export default function Login() {
         }
 
         setLoading(true);
-
         try {
-            // Simulação de login async (substitua pela sua API real)
+            // Simulação de login async (substitua pela API real)
             await new Promise((resolve) => setTimeout(resolve, 1500));
 
-            console.log('Login efetuado:', { email, password });
             router.push('/transactions');
         } catch (err) {
             setError('Erro ao efetuar login. Tente novamente.');
@@ -105,7 +102,7 @@ export default function Login() {
             container
             justifyContent="center"
             alignItems="center"
-            style={{ minHeight: '100vh', flexDirection: 'column', gap: 2 }}
+            style={{ minHeight: '100vh', flexDirection: 'column', gap: 16 }}
         >
             <Box
                 p={4}
@@ -128,29 +125,27 @@ export default function Login() {
                 </Typography>
 
                 {error && (
-                    <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
+                    <Alert severity="error" sx={{ mb: 2, width: '100%' }} role="alert">
                         {error}
                     </Alert>
                 )}
 
                 <TextField
                     label="Email"
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    margin="normal"
                     fullWidth
-                    sx={inputStyle}
+                    sx={{ ...inputStyle, my: 1 }}
                 />
 
-                {/* 👁️ Campo de senha com olho mágico */}
                 <TextField
                     label="Senha"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    margin="normal"
                     fullWidth
-                    sx={inputStyle}
+                    sx={{ ...inputStyle, my: 1 }}
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
@@ -184,10 +179,9 @@ export default function Login() {
                 sx={{
                     textTransform: 'none',
                     color: '#0071EB',
-                    mt: 1,
                     fontSize: '18px',
                     fontWeight: 600,
-                    padding: '8px 16px',
+                    p: '8px 16px',
                 }}
             >
                 Esqueci a senha
@@ -196,7 +190,7 @@ export default function Login() {
             <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)}>
                 <DialogTitle>Recuperar senha</DialogTitle>
                 <DialogContent
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}
+                    sx={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 300 }}
                 >
                     <Typography>
                         Esqueceu a senha? Digite seu e-mail para receber um link de
@@ -208,10 +202,11 @@ export default function Login() {
 
                     <TextField
                         label="Email"
+                        type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
                         fullWidth
-                        sx={inputStyle}
+                        sx={{ ...inputStyle, my: 1 }}
                     />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -226,13 +221,15 @@ export default function Login() {
                     >
                         Fechar
                     </Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleForgotSend}
-                        sx={{ flex: 1, ...mainButtonStyle }}
-                    >
-                        Enviar
-                    </Button>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <Button
+                            variant="contained"
+                            onClick={handleForgotSend}
+                            sx={{ width: '100%', ...mainButtonStyle }}
+                        >
+                            Enviar
+                        </Button>
+                    </Box>
                 </DialogActions>
             </Dialog>
         </Grid>
