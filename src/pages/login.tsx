@@ -1,4 +1,4 @@
-// pages/login.tsx
+// src/pages/login.tsx
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import {
@@ -8,230 +8,155 @@ import {
     Typography,
     Grid,
     Alert,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    IconButton,
-    InputAdornment,
     CircularProgress,
+    Link as MuiLink,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import Cookies from 'js-cookie';
+
+import { signIn } from '@/services/cognito';
+import { useTempUser } from '@/contexts/TempUserContext';
+import ResetPassword from '@/components/ResetPassword'; // ajuste para o caminho correto do seu componente
 
 export default function Login() {
     const router = useRouter();
+    const { setTempUser } = useTempUser();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const [forgotOpen, setForgotOpen] = useState(false);
-    const [forgotEmail, setForgotEmail] = useState('');
-    const [forgotSuccess, setForgotSuccess] = useState('');
-
-    const [showPassword, setShowPassword] = useState(false);
-    const handleClickShowPassword = () => setShowPassword((prev) => !prev);
-    const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-    };
+    // estado para o modal "esqueci a senha"
+    const [openReset, setOpenReset] = useState(false);
 
     const isEmailValid = (email: string) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     const handleLogin = async () => {
         setError('');
-        if (!isEmailValid(email) || password.length < 4) {
-            setError('Login/senha inválidos');
+        if (!isEmailValid(email)) {
+            setError('Email inválido');
+            return;
+        }
+        if (!password || password.length < 4) {
+            setError('Senha muito curta');
             return;
         }
 
-        setLoading(true);
         try {
-            // Simulação de login async (substitua pela API real)
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            setLoading(true);
+            const result = await signIn(email, password);
 
-            router.push('/transactions');
-        } catch (err) {
-            setError('Erro ao efetuar login. Tente novamente.');
+            if (result?.challenge === 'NEW_PASSWORD_REQUIRED' && result.user) {
+                setTempUser(result.user);
+                sessionStorage.setItem('cognitoUsername', email);
+                await router.push('/new-password');
+                return;
+            }
+
+            if (result.idToken != null) {
+                Cookies.set('api-examples-token', result.idToken, { expires: 1 });
+            }
+
+            await router.push('/transactions');
+        } catch (err: any) {
+            const msg =
+                err?.message ||
+                err?.code ||
+                'Não foi possível autenticar. Verifique suas credenciais e tente novamente.';
+            setError(msg);
         } finally {
             setLoading(false);
         }
     };
 
-    const isButtonDisabled = !email || !password || !isEmailValid(email) || loading;
-
-    const handleForgotSend = () => {
-        if (!isEmailValid(forgotEmail)) {
-            setError('Email inválido para recuperação');
-            return;
-        }
-        setForgotSuccess('Link de recuperação enviado para seu email.');
-        setError('');
-    };
-
-    const inputStyle = {
-        '& .MuiOutlinedInput-root': {
-            borderRadius: 4,
-            backgroundColor: '#FFF',
-        },
-    };
-    const mainButtonStyle = {
-        borderRadius: '16px',
-        backgroundColor: '#0071EB',
-        color: '#FFF',
-        fontWeight: 700,
-        fontSize: '16px',
-        textTransform: 'none',
-        py: '10px',
-        '&:hover': { backgroundColor: '#005bb5' },
-    };
-    const secondaryButtonStyle = {
-        borderRadius: '16px',
-        textTransform: 'uppercase',
-        fontWeight: 'bold',
-        backgroundColor: '#FFF',
-        color: '#0071EB',
-        minWidth: 120,
-        boxShadow: 'none',
-        border: '1px solid #ccc',
-        '&:hover': { backgroundColor: '#f0f0f0' },
-    };
+    const isButtonDisabled =
+        !email || !password || !isEmailValid(email) || loading;
 
     return (
         <Grid
             container
             justifyContent="center"
             alignItems="center"
-            style={{ minHeight: '100vh', flexDirection: 'column', gap: 16 }}
+            style={{ minHeight: '100vh' }}
         >
-            <Box
-                p={4}
-                borderRadius={2}
-                boxShadow={3}
-                display="flex"
-                flexDirection="column"
-                minWidth={300}
-                alignItems="center"
-            >
-                <Typography
-                    variant="h4"
-                    sx={{
-                        color: '#0071EB',
-                        fontWeight: 700,
-                        mb: 2,
-                    }}
+            {/* agrupando login + link em uma coluna */}
+            <Box display="flex" flexDirection="column" alignItems="center">
+                {/* Box de login */}
+                <Box
+                    p={4}
+                    borderRadius={2}
+                    boxShadow={3}
+                    display="flex"
+                    flexDirection="column"
+                    minWidth={320}
+                    alignItems="center"
+                    bgcolor="background.paper"
                 >
-                    Login
-                </Typography>
-
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2, width: '100%' }} role="alert">
-                        {error}
-                    </Alert>
-                )}
-
-                <TextField
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    fullWidth
-                    sx={{ ...inputStyle, my: 1 }}
-                />
-
-                <TextField
-                    label="Senha"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    fullWidth
-                    sx={{ ...inputStyle, my: 1 }}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                                    onClick={handleClickShowPassword}
-                                    onMouseDown={handleMouseDownPassword}
-                                    edge="end"
-                                >
-                                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                                </IconButton>
-                            </InputAdornment>
-                        ),
-                    }}
-                />
-
-                <Button
-                    variant="contained"
-                    onClick={handleLogin}
-                    sx={{ mt: 2, width: '100%', ...mainButtonStyle }}
-                    disabled={isButtonDisabled}
-                >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar'}
-                </Button>
-            </Box>
-
-            <Button
-                variant="text"
-                size="small"
-                onClick={() => setForgotOpen(true)}
-                sx={{
-                    textTransform: 'none',
-                    color: '#0071EB',
-                    fontSize: '18px',
-                    fontWeight: 600,
-                    p: '8px 16px',
-                }}
-            >
-                Esqueci a senha
-            </Button>
-
-            <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)}>
-                <DialogTitle>Recuperar senha</DialogTitle>
-                <DialogContent
-                    sx={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 300 }}
-                >
-                    <Typography>
-                        Esqueceu a senha? Digite seu e-mail para receber um link de
-                        recuperação:
+                    <Typography
+                        variant="h4"
+                        sx={{
+                            color: '#0071EB',
+                            fontWeight: 700,
+                            mb: 2,
+                        }}
+                    >
+                        LOGIN
                     </Typography>
 
-                    {error && <Alert severity="error">{error}</Alert>}
-                    {forgotSuccess && <Alert severity="success">{forgotSuccess}</Alert>}
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
+                            {error}
+                        </Alert>
+                    )}
 
                     <TextField
                         label="Email"
-                        type="email"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        margin="normal"
                         fullWidth
-                        sx={{ ...inputStyle, my: 1 }}
+                        type="email"
+                        autoComplete="username"
                     />
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
+
+                    <TextField
+                        label="Senha"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        margin="normal"
+                        fullWidth
+                        autoComplete="current-password"
+                    />
+
                     <Button
-                        onClick={() => {
-                            setForgotOpen(false);
-                            setForgotEmail('');
-                            setError('');
-                            setForgotSuccess('');
-                        }}
-                        sx={secondaryButtonStyle}
+                        variant="contained"
+                        color="primary"
+                        onClick={handleLogin}
+                        sx={{ mt: 2 }}
+                        disabled={isButtonDisabled}
+                        fullWidth
+                        endIcon={
+                            loading ? <CircularProgress size={18} color="inherit" /> : undefined
+                        }
                     >
-                        Fechar
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
-                    <Box sx={{ flexGrow: 1 }}>
-                        <Button
-                            variant="contained"
-                            onClick={handleForgotSend}
-                            sx={{ width: '100%', ...mainButtonStyle }}
-                        >
-                            Enviar
-                        </Button>
-                    </Box>
-                </DialogActions>
-            </Dialog>
+                </Box>
+
+                {/* Link Esqueci a senha logo abaixo do box */}
+                <MuiLink
+                    component="button"
+                    type="button"
+                    onClick={() => setOpenReset(true)}
+                    sx={{ mt: 1, color: '#0071EB', fontWeight: 500 }}
+                >
+                    Esqueci a senha
+                </MuiLink>
+            </Box>
+
+            {/* Modal ResetPassword */}
+            <ResetPassword open={openReset} onClose={() => setOpenReset(false)} />
         </Grid>
     );
 }
