@@ -12,6 +12,8 @@ import {
     Link as MuiLink,
 } from '@mui/material';
 import Cookies from 'js-cookie';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { InputAdornment, IconButton } from '@mui/material';
 
 import { signIn } from '@/services/cognito';
 import { useTempUser } from '@/contexts/TempUserContext';
@@ -30,6 +32,9 @@ export default function Login() {
 
     const isEmailValid = (email: string) =>
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    const [showPassword, setShowPassword] = useState(false);
+
 
     const handleLogin = async () => {
         setError('');
@@ -121,13 +126,26 @@ export default function Login() {
 
                     <TextField
                         label="Senha"
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         margin="normal"
                         fullWidth
                         autoComplete="current-password"
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        edge="end"
+                                    >
+                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
                     />
+
 
                     <Button
                         variant="contained"
@@ -144,15 +162,20 @@ export default function Login() {
                     </Button>
                 </Box>
 
-                {/* Link Esqueci a senha logo abaixo do box */}
-                <MuiLink
-                    component="button"
-                    type="button"
-                    onClick={() => setOpenReset(true)}
-                    sx={{ mt: 1, color: '#0071EB', fontWeight: 500 }}
-                >
-                    Esqueci a senha
-                </MuiLink>
+                {/* Link Esqueci a senha logo abaixo do box */}<Button
+                variant="text"
+                onClick={() => setOpenReset(true)}
+                sx={{
+                    mt: 1,
+                    color: '#0071EB',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '18px',
+                }}
+            >
+                Esqueci a senha
+            </Button>
+
             </Box>
 
             {/* Modal ResetPassword */}

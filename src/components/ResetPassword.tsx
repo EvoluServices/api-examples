@@ -7,6 +7,7 @@ import {
     DialogActions,
     TextField,
     Button,
+    Box,
     Alert,
     CircularProgress,
     Typography
@@ -69,12 +70,21 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} disabled={loading}>
-                    Fechar
-                </Button>
-                <Button onClick={handleSend} disabled={loading} variant="contained" color="primary" endIcon={loading ? <CircularProgress size={18} /> : null}>
-                    Enviar
-                </Button>
+                 <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    gap={2}
+                    mt={2}
+                    >
+                    <Button  onClick={handleClose} disabled={loading}>
+
+                        Fechar
+                    </Button>
+                    <Button onClick={handleSend} disabled={loading} variant="contained" color="primary" endIcon={loading ? <CircularProgress size={18} /> : null}>
+                        Enviar
+                    </Button>
+                </Box>
+
             </DialogActions>
         </Dialog>
     );
