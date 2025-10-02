@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { AppBar, Toolbar, Button, Box, Typography } from '@mui/material';
 
 import { NavbarProps } from '@/interfaces/navbar';
+import UserMenu from "@/components/Logout";
 
 const Navbar = ({ pages }: NavbarProps) => {
     const pathname = usePathname();
@@ -50,6 +51,7 @@ const Navbar = ({ pages }: NavbarProps) => {
                         </Link>
                     ))}
                 </Box>
+            <UserMenu/>
             </Toolbar>
         </AppBar>
     );
