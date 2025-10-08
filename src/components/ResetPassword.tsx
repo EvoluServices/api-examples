@@ -10,10 +10,11 @@ import {
     Box,
     Alert,
     CircularProgress,
-    Typography
+    Typography,
 } from '@mui/material';
 import { forgotPassword } from '@/services/cognito';
-import NewPasswordModal from './NewPasswordModal'; // novo modal para código e nova senha
+import type { PaperProps } from '@mui/material/Paper';
+import NewPasswordModal from './NewPasswordModal';
 
 interface ResetPasswordProps {
     open: boolean;
@@ -25,7 +26,7 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    // novo estado para controlar abertura do modal de nova senha
+    // Estado para abrir o modal de inserir código + nova senha
     const [openNewPassword, setOpenNewPassword] = useState(false);
 
     const handleSend = async () => {
@@ -44,7 +45,7 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
                 text: 'Se o e-mail estiver cadastrado, você receberá instruções para resetar a senha.'
             });
 
-            // abre o modal de inserir código + nova senha
+            // abre modal de código + nova senha
             setOpenNewPassword(true);
         } catch (err: any) {
             setMessage({ type: 'error', text: err?.message || 'Erro ao solicitar reset de senha.' });
@@ -61,12 +62,29 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
 
     return (
         <>
-            <Dialog open={open} onClose={handleClose}>
-                <DialogTitle>Redefinir senha</DialogTitle>
+            {/* Modal principal de reset de senha */}
+            <Dialog
+                open={open}
+                onClose={handleClose}
+                PaperProps={{
+                    sx: { borderRadius: '20px', p: 2 },
+                } as Partial<PaperProps>}
+            >
+                <DialogTitle
+                    sx={{
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        color: '#0071EB',
+                    }}
+                >
+                    Redefinir senha
+                </DialogTitle>
+
                 <DialogContent>
-                    <Typography sx={{ mb: 2 }}>
+                    <Typography sx={{ mb: 2, textAlign: 'center' }}>
                         Digite o e-mail cadastrado para receber as instruções:
                     </Typography>
+
                     <TextField
                         label="E-mail"
                         type="email"
@@ -74,24 +92,35 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
                         onChange={(e) => setEmail(e.target.value)}
                         fullWidth
                         autoFocus
+                        sx={{
+                            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+                        }}
                     />
+
                     {message && (
-                        <Alert severity={message.type} sx={{ mt: 2 }}>
+                        <Alert severity={message.type} sx={{ mt: 2, borderRadius: '10px' }}>
                             {message.text}
                         </Alert>
                     )}
                 </DialogContent>
+
                 <DialogActions>
-                    <Box display="flex" justifyContent="space-between" gap={2} mt={2}>
-                        <Button onClick={handleClose} disabled={loading}>
+                    <Box display="flex" justifyContent="space-between" gap={2} mt={2} width="100%" px={2}>
+                        <Button
+                            onClick={handleClose}
+                            disabled={loading}
+                            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600, px: 3 }}
+                        >
                             Fechar
                         </Button>
+
                         <Button
                             onClick={handleSend}
                             disabled={loading}
                             variant="contained"
                             color="primary"
                             endIcon={loading ? <CircularProgress size={18} /> : null}
+                            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600, px: 3 }}
                         >
                             Enviar
                         </Button>
@@ -99,11 +128,11 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
                 </DialogActions>
             </Dialog>
 
-            {/* modal de código + nova senha */}
+            {/* Modal de inserir código e nova senha */}
             <NewPasswordModal
                 open={openNewPassword}
                 onClose={() => setOpenNewPassword(false)}
-                email={email} // passa o e-mail digitado
+                email={email}
             />
         </>
     );

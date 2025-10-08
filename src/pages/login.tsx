@@ -1,6 +1,8 @@
-// src/pages/login.tsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import Cookies from 'js-cookie';
+
+// MUI Components
 import {
     Box,
     TextField,
@@ -9,35 +11,65 @@ import {
     Grid,
     Alert,
     CircularProgress,
-    Link as MuiLink,
+    IconButton,
+    InputAdornment,
 } from '@mui/material';
-import Cookies from 'js-cookie';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { InputAdornment, IconButton } from '@mui/material';
 
+// Custom Services & Contexts
 import { signIn } from '@/services/cognito';
 import { useTempUser } from '@/contexts/TempUserContext';
-import ResetPassword from '@/components/ResetPassword'; // ajuste para o caminho correto do seu componente
+import ResetPassword from '@/components/ResetPassword';
 
+// Interface opcional para segurança de tipos
+interface SignInResult {
+    challenge?: string;
+    user?: any;
+    idToken?: string;
+    userAttributes?: { [key: string]: any };
+}
+
+// --- Componente de Login ---
 export default function Login() {
     const router = useRouter();
     const { setTempUser } = useTempUser();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-
-    // estado para o modal "esqueci a senha"
     const [openReset, setOpenReset] = useState(false);
-
-    const isEmailValid = (email: string) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
     const [showPassword, setShowPassword] = useState(false);
 
+    // Validação simples de email
+    const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    const handleLogin = async () => {
+    const isButtonDisabled =
+        !email || !password || !isEmailValid(email) || loading;
+
+    const saveCustomAttributes = (userAttributes: { [key: string]: any }) => {
+        const customAttrs = {
+            keyId: userAttributes['custom:dev-keyId'],
+            merchantName: userAttributes['custom:dev-merchantName'],
+            selectedEnv: userAttributes['custom:selected-env'],
+        };
+
+        const cookieOptions = {
+            expires: 1,
+            secure: process.env.NODE_ENV === 'production',
+        };
+
+        if (customAttrs.merchantName) {
+            Cookies.set('merchantName', customAttrs.merchantName, cookieOptions);
+        }
+        if (customAttrs.keyId) {
+            Cookies.set('keyId', customAttrs.keyId, cookieOptions);
+        }
+    };
+
+    const handleLogin = useCallback(async () => {
         setError('');
+
         if (!isEmailValid(email)) {
             setError('Email inválido');
             return;
@@ -49,20 +81,29 @@ export default function Login() {
 
         try {
             setLoading(true);
-            const result = await signIn(email, password);
+            const result: SignInResult = await signIn(email, password);
 
-            if (result?.challenge === 'NEW_PASSWORD_REQUIRED' && result.user) {
+            // Fluxo 1: Nova Senha Obrigatória
+            if (result?.challenge === 'NEW_PASSWORD_REQUIRED' && result?.user) {
                 setTempUser(result.user);
                 sessionStorage.setItem('cognitoUsername', email);
                 await router.push('/new-password');
                 return;
             }
 
-            if (result.idToken != null) {
+            // Fluxo 2: Autenticação bem-sucedida
+            if (result?.idToken) {
                 Cookies.set('api-examples-token', result.idToken, { expires: 1 });
+
+                if (result?.userAttributes) {
+                    saveCustomAttributes(result.userAttributes);
+                }
+
+                await router.push('/transactions');
+            } else {
+                setError('Erro ao autenticar. Tente novamente.');
             }
 
-            await router.push('/transactions');
         } catch (err: any) {
             const msg =
                 err?.message ||
@@ -72,25 +113,21 @@ export default function Login() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const isButtonDisabled =
-        !email || !password || !isEmailValid(email) || loading;
+    }, [email, password, router, setTempUser]);
 
     return (
         <Grid
             container
             justifyContent="center"
             alignItems="center"
-            style={{ minHeight: '100vh' }}
+            sx={{ minHeight: '100vh', bgcolor: 'background.default' }}
         >
-            {/* agrupando login + link em uma coluna */}
             <Box display="flex" flexDirection="column" alignItems="center">
-                {/* Box de login */}
+                {/* Box de Login */}
                 <Box
                     p={4}
-                    borderRadius={2}
-                    boxShadow={3}
+                    borderRadius="16px"
+                    boxShadow={4}
                     display="flex"
                     flexDirection="column"
                     minWidth={320}
@@ -99,11 +136,7 @@ export default function Login() {
                 >
                     <Typography
                         variant="h4"
-                        sx={{
-                            color: '#0071EB',
-                            fontWeight: 700,
-                            mb: 2,
-                        }}
+                        sx={{ color: '#0071EB', fontWeight: 700, mb: 2 }}
                     >
                         LOGIN
                     </Typography>
@@ -114,6 +147,7 @@ export default function Login() {
                         </Alert>
                     )}
 
+                    {/* Campo Email */}
                     <TextField
                         label="Email"
                         value={email}
@@ -122,8 +156,10 @@ export default function Login() {
                         fullWidth
                         type="email"
                         autoComplete="username"
+                        onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                     />
 
+                    {/* Campo Senha */}
                     <TextField
                         label="Senha"
                         type={showPassword ? 'text' : 'password'}
@@ -132,6 +168,7 @@ export default function Login() {
                         margin="normal"
                         fullWidth
                         autoComplete="current-password"
+                        onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">
@@ -146,36 +183,40 @@ export default function Login() {
                         }}
                     />
 
-
+                    {/* Botão de Entrar */}
                     <Button
                         variant="contained"
                         color="primary"
                         onClick={handleLogin}
-                        sx={{ mt: 2 }}
+                        sx={{
+                            mt: 2,
+                            borderRadius: '12px',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            py: 1.2,
+                        }}
                         disabled={isButtonDisabled}
                         fullWidth
-                        endIcon={
-                            loading ? <CircularProgress size={18} color="inherit" /> : undefined
-                        }
+                        endIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
                     >
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
                 </Box>
 
-                {/* Link Esqueci a senha logo abaixo do box */}<Button
-                variant="text"
-                onClick={() => setOpenReset(true)}
-                sx={{
-                    mt: 1,
-                    color: '#0071EB',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: '18px',
-                }}
-            >
-                Esqueci a senha
-            </Button>
-
+                {/* Link Esqueci a senha */}
+                <Button
+                    variant="text"
+                    onClick={() => setOpenReset(true)}
+                    sx={{
+                        mt: 1,
+                        color: '#0071EB',
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        fontSize: '18px',
+                    }}
+                >
+                    Esqueci a senha
+                </Button>
             </Box>
 
             {/* Modal ResetPassword */}
