@@ -5,8 +5,6 @@ import CodeIcon from "@mui/icons-material/Code";
 import FactoryIcon from "@mui/icons-material/Factory";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import Cookies from 'js-cookie';
-import { jwtDecode } from 'jwt-decode';
 import { userPool } from '@/services/cognito';
 import type { CognitoUser, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 
@@ -35,7 +33,6 @@ export default function Index() {
 
     const [selectedEnvironment, setSelectedEnvironment]
         = useState<'dev' | 'prod' | null>(null);
-
 
     const [devValues, setDevValues] = useState({
         apiKey: '',
@@ -135,44 +132,52 @@ export default function Index() {
 
       const tokens = await refreshTokens(user);
 
-      // Atualiza o cookie com o novo ID Token
-      Cookies.set('api-examples-token', tokens.idToken, { expires: 1 });
-
-      // Reaplica estados a partir do novo token
-      const payload = jwtDecode<IdTokenPayload>(tokens.idToken);
-      fillStateFromTokenPayload(payload);
-    }
-
-    // ---- Token → State helpers ----
-    type IdTokenPayload = Record<string, any>;
-
-    function fillStateFromTokenPayload(payload: IdTokenPayload) {
-      const envClaim = (payload['custom:selected-env'] as 'dev' | 'prod' | undefined) ?? 'dev';
-
-      const toValues = (env: 'dev' | 'prod') => ({
-        apiKey: payload[`custom:${env}-username`] ?? '',
-        apiSecret: payload[`custom:${env}-password`] ?? '',
-        merchantName: payload[`custom:${env}-merchantName`] ?? '',
-        merchantKey: payload[`custom:${env}-keyId`] ?? '',
-        callback: '',
+      await fetch('/api/session/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: tokens.idToken }),
       });
 
-      setDevValues(toValues('dev'));
-      setProdValues(toValues('prod'));
-      setSelectedEnvironment(envClaim);
+      // Busca dados não sensíveis da sessão para refletir na UI
+      const me = await fetch('/api/session/me').then(r => r.json()).catch(() => null);
+      if (me?.ok) {
+        fillStateFromSession(me);
+      }
+    }
+
+    function fillStateFromSession(me: {
+        env?: 'dev' | 'prod';
+        merchantKey?: string | null;
+        merchantName?: string | null;
+        apiKey?: string | null;
+        apiSecret?: string | null;
+    }) {
+        const envClaim = (me.env as 'dev' | 'prod' | undefined) ?? 'dev';
+
+        const toValues = (env: 'dev' | 'prod') => ({
+            apiKey: env === envClaim ? (me.apiKey ?? '') : '',
+            apiSecret: env === envClaim ? (me.apiSecret ?? '') : '',
+            merchantName: env === envClaim ? (me.merchantName ?? '') : '',
+            merchantKey: env === envClaim ? (me.merchantKey ?? '') : '',
+            callback: '',
+        });
+
+        setDevValues(toValues('dev'));
+        setProdValues(toValues('prod'));
+        setSelectedEnvironment(envClaim);
     }
 
     useEffect(() => {
-      const idToken = Cookies.get('api-examples-token');
-      if (idToken) {
+      (async () => {
         try {
-          const payload = jwtDecode<IdTokenPayload>(idToken);
-          fillStateFromTokenPayload(payload);
-          return; // já carregou a partir do token
+          const me = await fetch('/api/session/me').then(r => r.json());
+          if (me?.ok) {
+            fillStateFromSession(me);
+          }
         } catch (e) {
-          console.warn('Falha ao decodificar idToken', e);
+          console.warn('Falha ao carregar sessão', e);
         }
-      }
+      })();
     }, []);
 
     const handleInputChange = (

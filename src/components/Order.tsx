@@ -16,8 +16,6 @@ import axios from 'axios';
 
 import {useTransaction} from '@/contexts/TransactionContext';
 import {brands} from './Brand';
-import Cookies from 'js-cookie';
-import { jwtDecode } from 'jwt-decode';
 import {maskCpfCnpj, onlyDigits, isCpfCnpjLenValid} from '@/utils/document';
 import {isNameValid} from '@/utils/nameValidation';
 import {parseApiError} from '@/utils/httpErrors';
@@ -30,22 +28,6 @@ type OrderResult = {
     amount?: string;
     installments?: string;
 } | null;
-
-type Env = 'dev' | 'prod';
-type IdTokenPayload = Record<string, any>;
-
-function getMerchantKeyFromToken(): string | null {
-  const token = Cookies.get('api-examples-token');
-  if (!token) return null;
-  try {
-    const payload = jwtDecode<IdTokenPayload>(token);
-    const env: Env = payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
-    const merchantKey = payload[`custom:${env}-keyId`] ?? '';
-    return merchantKey || null;
-  } catch {
-    return null;
-  }
-}
 
 type OrderProps = {
     onConclude?: () => void;
@@ -104,13 +86,15 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                 });
                 return;
             }
-            const merchantKey = getMerchantKeyFromToken();
+            // Lê merchantKey do cookie HttpOnly no servidor
+            const meResp = await axios.get('/api/session/me');
+            const merchantKey: string | undefined = meResp?.data?.merchantKey;
             if (!merchantKey) {
                 setSnackbar({
                     open: true,
                     severity: 'error',
                     title: 'Credenciais',
-                    description: 'Chave de Integração do Estabelecimento ausente no token.',
+                    description: 'Chave de Integração do Estabelecimento ausente na sessão. Faça login novamente.',
                 });
                 return;
             }

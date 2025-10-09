@@ -127,6 +127,7 @@ export default function TransactionsPage() {
         setPayment(0);
         setPaymentMethods(true);
         setAutoSubmitNonce((n) => n + 1);
+        console.debug('[TransactionsPage] Produto selecionado:', method);
         setSelectedProduct(method);
     };
 
