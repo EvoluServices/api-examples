@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { completeNewPasswordChallenge } from '@/services/cognito';
 import { useTempUser } from '@/contexts/TempUserContext';
-import { Box, TextField, Button, Typography, Alert, Collapse } from '@mui/material';
+import { Box, TextField, Button, Typography, Alert, Collapse, InputAdornment, IconButton } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 export default function NewPasswordPage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
     const { tempUser } = useTempUser();
@@ -44,22 +47,23 @@ export default function NewPasswordPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 p: 2,
+                bgcolor: '#f5f5f5', // fundo geral da página
             }}
         >
             <Box
                 sx={{
                     width: '100%',
                     maxWidth: 400,
-                    bgcolor: 'white',
+                    bgcolor: '#fff',
                     p: 4,
-                    borderRadius: 2,
+                    borderRadius: 6,
                     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 2,
                 }}
             >
-                <Typography variant="h6" fontWeight="bold" textAlign="center">
+                <Typography variant="h6" fontWeight="bold" textAlign="center" color="#0071EB">
                     Defina sua nova senha
                 </Typography>
 
@@ -73,16 +77,52 @@ export default function NewPasswordPage() {
 
                 <TextField
                     label="Nova senha"
-                    type="password"
+                    type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    fullWidth
+                    sx={{
+                        bgcolor: 'white',
+                        borderRadius: 2,
+                        '& .MuiOutlinedInput-root': { borderRadius: 2 },
+                    }}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    edge="end"
+                                >
+                                    {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
                 />
 
                 <TextField
                     label="Confirme a nova senha"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    fullWidth
+                    sx={{
+                        bgcolor: 'white',
+                        borderRadius: 2,
+                        '& .MuiOutlinedInput-root': { borderRadius: 2 },
+                    }}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    edge="end"
+                                >
+                                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        ),
+                    }}
                 />
 
                 <Button
@@ -96,7 +136,7 @@ export default function NewPasswordPage() {
                         textTransform: 'none',
                         borderRadius: '16px',
                         py: '10px',
-                        '&:hover': {backgroundColor: '#0071EB'},
+                        '&:hover': { backgroundColor: '#0071EB' },
                     }}
                     onClick={handleSubmit}
                 >

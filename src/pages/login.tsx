@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
+import {useState, useCallback} from 'react';
+import {useRouter} from 'next/router';
 import Cookies from 'js-cookie';
 
 // MUI Components
@@ -14,11 +14,11 @@ import {
     IconButton,
     InputAdornment,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import {Visibility, VisibilityOff} from '@mui/icons-material';
 
 // Custom Services & Contexts
-import { signIn } from '@/services/cognito';
-import { useTempUser } from '@/contexts/TempUserContext';
+import {signIn} from '@/services/cognito';
+import {useTempUser} from '@/contexts/TempUserContext';
 import ResetPassword from '@/components/ResetPassword';
 
 // Interface opcional para segurança de tipos
@@ -32,7 +32,7 @@ interface SignInResult {
 // --- Componente de Login ---
 export default function Login() {
     const router = useRouter();
-    const { setTempUser } = useTempUser();
+    const {setTempUser} = useTempUser();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -92,7 +92,7 @@ export default function Login() {
             }
 
             if (result.idToken != null) {
-                Cookies.set('api-examples-token', result.idToken, { expires: 1 });
+                Cookies.set('api-examples-token', result.idToken, {expires: 1});
 
                 if (result?.userAttributes) {
                     saveCustomAttributes(result.userAttributes);
@@ -119,7 +119,7 @@ export default function Login() {
             container
             justifyContent="center"
             alignItems="center"
-            sx={{ minHeight: '100vh', bgcolor: 'background.default' }}
+            sx={{minHeight: '100vh', bgcolor: 'background.default'}}
         >
             <Box display="flex" flexDirection="column" alignItems="center">
                 {/* Box de Login */}
@@ -135,13 +135,13 @@ export default function Login() {
                 >
                     <Typography
                         variant="h4"
-                        sx={{ color: '#0071EB', fontWeight: 700, mb: 2 }}
+                        sx={{color: '#0071EB', fontWeight: 700, mb: 2}}
                     >
                         LOGIN
                     </Typography>
 
                     {error && (
-                        <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
+                        <Alert severity="error" sx={{mb: 2, width: '100%'}}>
                             {error}
                         </Alert>
                     )}
@@ -175,7 +175,7 @@ export default function Login() {
                                         onClick={() => setShowPassword(!showPassword)}
                                         edge="end"
                                     >
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        {showPassword ? <VisibilityOff/> : <Visibility/>}
                                     </IconButton>
                                 </InputAdornment>
                             ),
@@ -196,7 +196,7 @@ export default function Login() {
                         }}
                         disabled={isButtonDisabled}
                         fullWidth
-                        endIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
+                        endIcon={loading ? <CircularProgress size={18} color="inherit"/> : undefined}
                     >
                         {loading ? 'Entrando...' : 'Entrar'}
                     </Button>
@@ -219,7 +219,7 @@ export default function Login() {
             </Box>
 
             {/* Modal ResetPassword */}
-            <ResetPassword open={openReset} onClose={() => setOpenReset(false)} />
+            <ResetPassword open={openReset} onClose={() => setOpenReset(false)}/>
         </Grid>
     );
 }
