@@ -6,60 +6,35 @@ import FactoryIcon from "@mui/icons-material/Factory";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
+import { userPool } from '@/services/cognito';
+import type { CognitoUser, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 
 export default function Index() {
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
-    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'warning'>('warning');
+    const [snackbarSeverity, setSnackbarSeverity]
+        = useState<'success' | 'warning'>('warning');
 
-    const [partnerDevKeyOpen, setPartnerDevKeyOpen] = useState(false);
+    const [partnerDevKeyOpen, setPartnerDevKeyOpen]
+        = useState(false);
     const PartnerDevKeyToggleOpen = () => setPartnerDevKeyOpen((prev) => !prev);
 
-    const [partnerProdKeyOpen, setPartnerProdKeyOpen] = useState(false);
+    const [partnerProdKeyOpen, setPartnerProdKeyOpen]
+        = useState(false);
     const PartnerProdKeyToggleOpen = () => setPartnerProdKeyOpen((prev) => !prev);
 
-    const [merchantDevKeyOpen, setMerchantDevKeyOpen] = useState(false);
+    const [merchantDevKeyOpen, setMerchantDevKeyOpen]
+        = useState(false);
     const merchantDevKeyToggleOpen = () => setMerchantDevKeyOpen((prev) => !prev);
 
-    const [merchantProdKeyOpen, setMerchantProdKeyOpen] = useState(false);
+    const [merchantProdKeyOpen, setMerchantProdKeyOpen]
+        = useState(false);
     const MerchantProdKeyToggleOpen = () => setMerchantProdKeyOpen((prev) => !prev);
 
-    const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'prod' | null>(null);
-
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-
-    const COOKIE_ENV_KEY = 'api-examples-selected-env';               // 'dev' | 'prod'
-    const COOKIE_CFG_KEY = (env: 'dev' | 'prod') => `api-examples-config-${env}`;
-
-    function readConfigFromCookie(env: 'dev' | 'prod') {
-        const raw = Cookies.get(COOKIE_CFG_KEY(env));
-        if (!raw) return null;
-        try {
-            return JSON.parse(raw);
-        } catch {
-            return null;
-        }
-    }
-
-    function applyFromCookie(env: 'dev' | 'prod') {
-        const cfg = readConfigFromCookie(env);
-        if (!cfg) return;
-
-        if (env === 'dev') {
-            setDevValues(cfg.values);
-        } else {
-            setProdValues(cfg.values);
-        }
-    }
-
-    useEffect(() => {
-        const lastEnv = Cookies.get(COOKIE_ENV_KEY) as 'dev' | 'prod' | undefined;
-        if (lastEnv) {
-            setSelectedEnvironment(lastEnv);
-            applyFromCookie(lastEnv);
-        }
-    }, []);
+    const [selectedEnvironment, setSelectedEnvironment]
+        = useState<'dev' | 'prod' | null>(null);
 
 
     const [devValues, setDevValues] = useState({
@@ -94,6 +69,112 @@ export default function Index() {
         callback: false,
     });
 
+    function getCurrentCognitoUser(): CognitoUser | null {
+      return userPool.getCurrentUser();
+    }
+
+    function updateCustomAttributes(
+      user: CognitoUser,
+      attrs: Record<string, string>
+    ) {
+      const list = Object.entries(attrs).map(
+        ([k, v]) => new (require('amazon-cognito-identity-js').CognitoUserAttribute)({ Name: `custom:${k}`, Value: v })
+      );
+
+      return new Promise<string>((resolve, reject) => {
+        user.getSession((err: any) => {
+          if (err) return reject(err);
+          user.updateAttributes(list as unknown as CognitoUserAttribute[], (e, result) => {
+            if (e) return reject(e);
+            resolve(result as string);
+          });
+        });
+      });
+    }
+
+    function refreshTokens(user: CognitoUser): Promise<{
+      idToken: string;
+      accessToken: string;
+      refreshToken: string;
+    }> {
+      return new Promise((resolve, reject) => {
+        user.getSession((err: any, session: { getRefreshToken: () => any; }) => {
+          if (err || !session) return reject(err || new Error('No session'));
+          const refreshToken = session.getRefreshToken();
+          user.refreshSession(refreshToken, (e, newSession) => {
+            if (e) return reject(e);
+            resolve({
+              idToken: newSession.getIdToken().getJwtToken(),
+              accessToken: newSession.getAccessToken().getJwtToken(),
+              refreshToken: newSession.getRefreshToken().getToken(),
+            });
+          });
+        });
+      });
+    }
+
+    async function onSaveToCognito({
+      env,
+      values,
+    }: {
+      env: 'dev' | 'prod';
+      values: { apiKey: string; apiSecret: string; merchantName?: string; merchantKey?: string };
+    }) {
+      const user = getCurrentCognitoUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const attrs: Record<string, string> = {
+        'selected-env': env,
+        [`${env}-username`]: values.apiKey,
+        [`${env}-password`]: values.apiSecret,
+        [`${env}-merchantName`]: values.merchantName ?? '',
+        [`${env}-keyId`]: values.merchantKey ?? '',
+      };
+
+      await updateCustomAttributes(user, attrs);
+
+      const tokens = await refreshTokens(user);
+
+      // Atualiza o cookie com o novo ID Token
+      Cookies.set('api-examples-token', tokens.idToken, { expires: 1 });
+
+      // Reaplica estados a partir do novo token
+      const payload = jwtDecode<IdTokenPayload>(tokens.idToken);
+      fillStateFromTokenPayload(payload);
+    }
+
+    // ---- Token → State helpers ----
+    type IdTokenPayload = Record<string, any>;
+
+    function fillStateFromTokenPayload(payload: IdTokenPayload) {
+      const envClaim = (payload['custom:selected-env'] as 'dev' | 'prod' | undefined) ?? 'dev';
+
+      const toValues = (env: 'dev' | 'prod') => ({
+        apiKey: payload[`custom:${env}-username`] ?? '',
+        apiSecret: payload[`custom:${env}-password`] ?? '',
+        merchantName: payload[`custom:${env}-merchantName`] ?? '',
+        merchantKey: payload[`custom:${env}-keyId`] ?? '',
+        callback: '',
+      });
+
+      setDevValues(toValues('dev'));
+      setProdValues(toValues('prod'));
+      setSelectedEnvironment(envClaim);
+    }
+
+    useEffect(() => {
+      const idToken = Cookies.get('api-examples-token');
+      if (idToken) {
+        try {
+          const payload = jwtDecode<IdTokenPayload>(idToken);
+          fillStateFromTokenPayload(payload);
+          return; // já carregou a partir do token
+        } catch (e) {
+          console.warn('Falha ao decodificar idToken', e);
+        }
+      }
+    }, []);
+
     const handleInputChange = (
         env: 'dev' | 'prod',
         field: keyof typeof devValues,
@@ -106,7 +187,7 @@ export default function Index() {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedEnvironment) {
             setSnackbarMessage("Selecione um ambiente antes de salvar.");
             setSnackbarSeverity("warning");
@@ -136,37 +217,18 @@ export default function Index() {
             return;
         }
 
-        const environmentUrl =
-            selectedEnvironment === 'dev'
-                ? 'https://sandbox.evoluservices.com'
-                : 'https://api.evoluservices.com';
-
-        const config = {
-            url: environmentUrl,
-            values, // { apiKey, apiSecret, merchantName, merchantKey }
-        };
-
-        Cookies.set(COOKIE_CFG_KEY(selectedEnvironment), JSON.stringify(config), {
-            expires: 7,
-            sameSite: 'Lax',
-            secure: isHttps,
-            path: '/',
-        });
-
-        Cookies.set(COOKIE_ENV_KEY, selectedEnvironment, {
-            expires: 7,
-            sameSite: 'Lax',
-            secure: isHttps,
-            path: '/',
-        });
-
-        applyFromCookie(selectedEnvironment);
-
-        setSnackbarMessage("Configurações salvas com sucesso.");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
-
-        console.log("Configuração salva:", config);
+        try {
+            await onSaveToCognito({ env: selectedEnvironment, values });
+            setSnackbarMessage("Configurações salvas e sincronizadas no Cognito.");
+            setSnackbarSeverity("success");
+            setSnackbarOpen(true);
+        } catch (e: any) {
+            console.error('Falha ao sincronizar com o Cognito', e);
+            setSnackbarMessage(e?.message || "Falhou ao sincronizar no Cognito.");
+            setSnackbarSeverity("warning");
+            setSnackbarOpen(true);
+        }
+        console.log("Configuração salva (Cognito):", { env: selectedEnvironment, values });
     };
 
     return (
@@ -237,7 +299,6 @@ export default function Index() {
                                     }}
                                     onClick={() => {
                                         setSelectedEnvironment('dev');
-                                        applyFromCookie('dev');
                                     }}
                                 >
                                     <Stack direction="row" alignItems="center" justifyContent="space-between"
@@ -431,7 +492,6 @@ export default function Index() {
                                     }}
                                     onClick={() => {
                                         setSelectedEnvironment('prod');
-                                        applyFromCookie('prod');
                                     }}
                                 >
                                     <Stack direction="row" alignItems="center" justifyContent="space-between"

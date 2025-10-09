@@ -10,11 +10,10 @@ import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
 import { parseApiError } from '@/utils/httpErrors';
 import { regexEmail } from '@/utils/regex';
 import axios from 'axios';
-import { getApiConfigFromCookies } from '@/utils/apiConfig';
+import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 import PinpadStatusPoller from '@/components/pinpad/PinpadStatusPoller';
 import type { TxResult } from '@/types/transactions';
-
-
 
 type PinpadProps = {
     autoSubmitNonce?: number;
@@ -23,6 +22,35 @@ type PinpadProps = {
     onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
     onPaymentChange?: (v: number) => void;
 };
+
+type Env = 'dev' | 'prod';
+type IdTokenPayload = Record<string, any>;
+
+function readTokenPayload(): IdTokenPayload | null {
+  const token = Cookies.get('api-examples-token');
+  if (!token) return null;
+  try {
+    return jwtDecode<IdTokenPayload>(token);
+  } catch {
+    return null;
+  }
+}
+
+function resolveEnv(payload: IdTokenPayload): Env {
+  return payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
+}
+
+function getCredsFromToken() {
+  const payload = readTokenPayload();
+  if (!payload) return null;
+  const env = resolveEnv(payload);
+  return {
+    env,
+    apiKey: payload[`custom:${env}-username`] ?? '',
+    apiSecret: payload[`custom:${env}-password`] ?? '',
+    merchantKey: payload[`custom:${env}-keyId`] ?? '',
+  };
+}
 
 export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: PinpadProps) {
     const {
@@ -85,6 +113,17 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
             return;
         }
 
+        const creds = getCredsFromToken();
+        if (!creds || !creds.apiKey || !creds.apiSecret) {
+          setSnackbar({
+            open: true,
+            severity: 'error',
+            title: 'Credenciais ausentes',
+            description: 'Não foi possível ler usuário/senha do token. Faça login novamente.',
+          });
+          return;
+        }
+
         const token = await fetchBearerToken();
         if (!token) {
             setSnackbar({
@@ -122,47 +161,51 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
     };
 
     const fetchBearerToken = async () => {
-        try {
-            const config = getApiConfigFromCookies();
-            const body = {
-                auth: {
-                    username: config.values.apiKey,
-                    apiKey: config.values.apiSecret,
-                },
-            };
-            const res = await axios.post(`/api/proxy/pinpad/remote/token`, body);
-            return res.data?.Bearer || null;
-        } catch (err) {
-            const { title, description } = parseApiError(err);
-            setSnackbar({ open: true, severity: 'error', title, description });
-            return null;
-        }
+      try {
+        const creds = getCredsFromToken();
+        if (!creds) throw new Error('Sem token Cognito.');
+        const body = {
+          auth: {
+            username: creds.apiKey,
+            apiKey: creds.apiSecret,
+          },
+        };
+        const res = await axios.post(`/api/proxy/pinpad/remote/token`, body);
+        return res.data?.Bearer || null;
+      } catch (err) {
+        const { title, description } = parseApiError(err);
+        setSnackbar({ open: true, severity: 'error', title, description });
+        return null;
+      }
     };
 
     const postRemoteTransaction = async (token: string) => {
-        try {
-            const config = getApiConfigFromCookies();
-            const payload = {
-                transaction: {
-                    merchantId: config.values.merchantKey,
-                    value: amount,
-                    installments: parseInt(installments || '1'),
-                    clientName: customerName,
-                    clientDocument: customerDocument,
-                    clientEmail: customerEmail,
-                    paymentBrand: cardBrand,
-                    callbackUrl:
-                        'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
-                },
-            };
-            const headers = { bearer: token, 'Content-Type': 'application/json' };
-            const res = await axios.post(`/api/proxy/pos/remote/transaction`, payload, { headers });
-            return res.data;
-        } catch (error) {
-            const { title, description } = parseApiError(error);
-            setSnackbar({ open: true, severity: 'error', title, description });
-            return null;
+      try {
+        const creds = getCredsFromToken();
+        if (!creds || !creds.merchantKey) {
+          throw new Error('Chave de Integração do Estabelecimento ausente no token.');
         }
+        const payload = {
+          transaction: {
+            merchantId: creds.merchantKey,
+            value: amount,
+            installments: parseInt(installments || '1'),
+            clientName: customerName,
+            clientDocument: customerDocument,
+            clientEmail: customerEmail,
+            paymentBrand: cardBrand,
+            callbackUrl:
+              'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
+          },
+        };
+        const headers = { bearer: token, 'Content-Type': 'application/json' };
+        const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
+        return res.data;
+      } catch (error) {
+        const { title, description } = parseApiError(error);
+        setSnackbar({ open: true, severity: 'error', title, description });
+        return null;
+      }
     };
 
     useEffect(() => {
@@ -176,7 +219,14 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
             (paymentType === 'credit' && !!cardBrand && !!installments);
 
         if (baseOk && nameOk && docOk && emailOk) {
-            void handleSubmit();
+            handleSubmit().catch(() => {
+                setSnackbar({
+                    open: true,
+                    severity: 'error',
+                    title: 'Erro ao enviar transação',
+                    description: 'Não foi possível iniciar a transação do Pinpad.',
+                });
+            });
         }
     }, [autoSubmitNonce]);
 

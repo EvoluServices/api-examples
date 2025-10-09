@@ -1,54 +1,67 @@
 import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 
-type Env = 'dev' | 'prod';
-
-export const COOKIE_ENV_KEY = 'api-examples-selected-env'; // 'dev' | 'prod'
-export const COOKIE_CFG_KEY = (env: Env) => `api-examples-config-${env}`;
-export const COOKIE_LEGACY  = 'api-examples-config';
+export type Env = 'dev' | 'prod';
 
 export type ApiConfig = {
-    url: string;
-    values: {
-        apiKey: string;
-        apiSecret: string;
-        merchantName?: string;
-        merchantKey?: string;
-        callback?: string;
-    };
-    environment?: Env;
+  url: string;
+  values: {
+    apiKey: string;
+    apiSecret: string;
+    merchantName?: string;
+    merchantKey?: string;
+    callback?: string;
+  };
+  environment?: Env;
 };
 
-/** Lê config dos cookies (novo formato, com fallback para o antigo). */
-export function getApiConfigFromCookies(): ApiConfig {
-    const selected = Cookies.get(COOKIE_ENV_KEY) as Env | undefined;
+/**
+ * Lê o token Cognito do cookie "api-examples-token",
+ * decodifica e retorna a configuração (url + credenciais) baseada no ambiente.
+ */
+export function getApiConfigFromToken(): ApiConfig {
+  const token = Cookies.get('api-examples-token');
+  if (!token) {
+    throw new Error('Token Cognito não encontrado (api-examples-token).');
+  }
 
-    if (selected) {
-        const raw = Cookies.get(COOKIE_CFG_KEY(selected));
-        if (raw) {
-            const cfg = JSON.parse(raw) as ApiConfig;
-            return { ...cfg, environment: selected };
-        }
-    }
+  const payload = jwtDecode<Record<string, any>>(token);
+  const env: Env = payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
 
-    const legacyRaw = Cookies.get(COOKIE_LEGACY);
-    if (legacyRaw) {
-        const legacy = JSON.parse(legacyRaw) as ApiConfig;
-        const env = (legacy as any).environment as Env | undefined;
-        return { ...legacy, environment: env };
-    }
+  const apiKey = payload[`custom:${env}-username`] ?? '';
+  const apiSecret = payload[`custom:${env}-password`] ?? '';
+  const merchantName = payload[`custom:${env}-merchantName`] ?? '';
+  const merchantKey = payload[`custom:${env}-keyId`] ?? '';
 
-    throw new Error('Configuração de autenticação não encontrada nos cookies.');
+  if (!apiKey || !apiSecret) {
+    throw new Error('Credenciais ausentes no token Cognito.');
+  }
+
+  const url =
+    env === 'prod'
+      ? 'https://api.evoluservices.com'
+      : 'https://sandbox.evoluservices.com';
+
+  return {
+    url,
+    values: {
+      apiKey,
+      apiSecret,
+      merchantName,
+      merchantKey,
+    },
+    environment: env,
+  };
 }
 
-/** Monta o header Basic Auth a partir do config. */
-export function buildBasicAuthHeader(cfg: ApiConfig) {
-    const { apiKey, apiSecret } = cfg.values || ({} as any);
-    if (!apiKey || !apiSecret) {
-        throw new Error('API Key/Secret ausentes na configuração.');
-    }
-    const credentials = btoa(`${apiKey}:${apiSecret}`);
-    return {
-        Authorization: `Basic ${credentials}`,
-        'Content-Type': 'application/json',
-    };
+/** Monta o header Basic Auth a partir do token Cognito decodificado. */
+export function buildBasicAuthHeader(): Record<string, string> {
+  const cfg = getApiConfigFromToken();
+  const { apiKey, apiSecret } = cfg.values;
+
+  const credentials = btoa(`${apiKey}:${apiSecret}`);
+  return {
+    Authorization: `Basic ${credentials}`,
+    'Content-Type': 'application/json',
+  };
 }

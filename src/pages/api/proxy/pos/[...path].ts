@@ -1,9 +1,11 @@
 // pages/api/proxy/pos/[...path].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
-import { ApiConfig, COOKIE_CFG_KEY, COOKIE_ENV_KEY } from '../../../../utils/apiConfig';
+import { jwtDecode } from 'jwt-decode';
 
-function getApiConfigFromServerCookies(req: NextApiRequest): ApiConfig {
+type Env = 'dev' | 'prod';
+
+function getBaseUrlFromToken(req: NextApiRequest) {
     const cookieHeader = req.headers.cookie || '';
     const cookies = Object.fromEntries(
         cookieHeader
@@ -12,22 +14,29 @@ function getApiConfigFromServerCookies(req: NextApiRequest): ApiConfig {
             .map(([k, ...v]) => [k, decodeURIComponent(v.join('='))])
     );
 
-    const env = cookies[COOKIE_ENV_KEY] as 'dev' | 'prod' | undefined;
-    if (env) {
-        const raw = cookies[COOKIE_CFG_KEY(env)];
-        if (raw) return { ...(JSON.parse(raw)), environment: env };
+    const idToken = cookies['api-examples-token'];
+    if (!idToken) {
+        throw new Error('Token Cognito não encontrado (api-examples-token).');
     }
 
-    throw new Error('Configuração de autenticação não encontrada nos cookies.');
+    const payload = jwtDecode<Record<string, any>>(idToken);
+    const env: Env = payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
+
+    const baseUrl =
+        env === 'prod'
+            ? 'https://api.evoluservices.com'
+            : 'https://sandbox.evoluservices.com';
+
+    return { baseUrl, env };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     const { path = [] } = req.query;
 
     try {
-        const config = getApiConfigFromServerCookies(req);
+        const { baseUrl } = getBaseUrlFromToken(req);
         const fullPath = Array.isArray(path) ? path.join('/') : path;
-        const url = `${config.url}/${fullPath}`;
+        const url = `${baseUrl}/${fullPath}`;
 
         const isTokenRequest = fullPath === 'remote/token';
         const bearerToken = req.headers['bearer'];

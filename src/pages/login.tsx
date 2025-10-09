@@ -91,8 +91,7 @@ export default function Login() {
                 return;
             }
 
-            // Fluxo 2: Autenticação bem-sucedida
-            if (result?.idToken) {
+            if (result.idToken != null) {
                 Cookies.set('api-examples-token', result.idToken, { expires: 1 });
 
                 if (result?.userAttributes) {

@@ -10,7 +10,6 @@ import GenericErrorResult from '@/components/results/GenericErrorResult';
 import {useTransaction} from '@/contexts/TransactionContext';
 import {Store, CreditCard, Link as LinkIcon} from 'lucide-react';
 import OrderLinkResult from "@/components/order/OrderLinkResult";
-import {buildBasicAuthHeader, getApiConfigFromCookies} from "@/utils/apiConfig";
 import axios from "axios";
 import EmptyStateMessage from "@/components/EmptyStateMessage";
 import PinpadResult from "@/components/pinpad/PinpadResult";
@@ -32,7 +31,8 @@ export default function TransactionsPage() {
     const [value, setValue] = useState('');
     const [rawValue, setRawValue] = useState(0);
     const [paymentMethods, setPaymentMethods] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState<ProductKey | null>(null);
+    const [selectedProduct, setSelectedProduct]
+        = useState<ProductKey | null>(null);
     const {setAmount, resetTransaction, customResetTransaction} = useTransaction();
     const [trxResult, setTrxResult] = useState<TxResult>(null);
     const [trxStatus, setTrxStatus] =
@@ -65,13 +65,11 @@ export default function TransactionsPage() {
 
     useEffect(() => {
         if (selectedProduct !== null) {
-            // limpa estados anteriores quando alterna entre Link/Pinpad/POS
             customResetTransaction();
             setPaymentMethods(true);
             setTrxResult(null);
             setTrxStatus('PENDING');
             setPayment(0);
-            // força remontagem dos componentes filhos para zerar estados internos
             setAutoSubmitNonce((n) => n + 1);
         }
     }, [selectedProduct]);
@@ -91,18 +89,16 @@ export default function TransactionsPage() {
     useEffect(() => {
         if (!trxResult?.uuid || selectedProduct !== 'order' || TERMINAL.includes(trxStatus as any)) return;
 
-        const cfg = getApiConfigFromCookies();
-        const headers = buildBasicAuthHeader(cfg);
-
         const poll = async () => {
             try {
-                const {data} = await axios.get(`${cfg.url}/api/orders/${trxResult.uuid}`, {headers});
+                const { data } = await axios.get(`/api/proxy/order/api/orders/${trxResult.uuid}`);
                 const totalPayments = sumPayments(data);
                 setPayment(totalPayments);
                 const newStatus = mapStatus(data);
                 setTrxStatus(newStatus as any);
                 if (TERMINAL.includes(newStatus as any)) clearInterval(timer);
-            } catch {
+            } catch (e) {
+                console.warn('Falha ao consultar status da ordem via proxy:', e);
             }
         };
 
@@ -125,15 +121,12 @@ export default function TransactionsPage() {
         ['APPROVED', 'DISAPPROVED', 'ABORTED', 'ERROR'];
 
     const selectProduct = (method: ProductKey) => {
-        // limpa imediatamente antes de trocar o componente
         customResetTransaction();
         setTrxResult(null);
         setTrxStatus('PENDING');
         setPayment(0);
         setPaymentMethods(true);
-        // força remontagem dos filhos
         setAutoSubmitNonce((n) => n + 1);
-        // por último, define o produto selecionado
         setSelectedProduct(method);
     };
 
@@ -208,7 +201,8 @@ export default function TransactionsPage() {
                             {(['order', 'pinpad', 'pos'] as const).map((method) => {
                                 const label = methodLabels[method];
                                 const isActive = selectedProduct === method;
-                                const Icon = method === 'order' ? LinkIcon : method === 'pinpad' ? Store : CreditCard;
+                                const Icon = method === 'order' ? LinkIcon : method
+                                === 'pinpad' ? Store : CreditCard;
                                 return (
                                     <Button
                                         key={method}

@@ -16,7 +16,8 @@ import axios from 'axios';
 
 import {useTransaction} from '@/contexts/TransactionContext';
 import {brands} from './Brand';
-import {getApiConfigFromCookies, buildBasicAuthHeader} from '@/utils/apiConfig';
+import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 import {maskCpfCnpj, onlyDigits, isCpfCnpjLenValid} from '@/utils/document';
 import {isNameValid} from '@/utils/nameValidation';
 import {parseApiError} from '@/utils/httpErrors';
@@ -29,6 +30,22 @@ type OrderResult = {
     amount?: string;
     installments?: string;
 } | null;
+
+type Env = 'dev' | 'prod';
+type IdTokenPayload = Record<string, any>;
+
+function getMerchantKeyFromToken(): string | null {
+  const token = Cookies.get('api-examples-token');
+  if (!token) return null;
+  try {
+    const payload = jwtDecode<IdTokenPayload>(token);
+    const env: Env = payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
+    const merchantKey = payload[`custom:${env}-keyId`] ?? '';
+    return merchantKey || null;
+  } catch {
+    return null;
+  }
+}
 
 type OrderProps = {
     onConclude?: () => void;
@@ -69,9 +86,6 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
 
     const handleSubmit = async () => {
         try {
-            const cfg = getApiConfigFromCookies();
-            const headers = buildBasicAuthHeader(cfg);
-
             if (!amountFloat || amountFloat <= 0) {
                 setSnackbar({
                     open: true,
@@ -90,12 +104,13 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                 });
                 return;
             }
-            if (!cfg.values?.merchantKey) {
+            const merchantKey = getMerchantKeyFromToken();
+            if (!merchantKey) {
                 setSnackbar({
                     open: true,
                     severity: 'error',
                     title: 'Credenciais',
-                    description: 'Chave de Integração do Estabelecimento ausente.',
+                    description: 'Chave de Integração do Estabelecimento ausente no token.',
                 });
                 return;
             }
@@ -106,7 +121,7 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                     amount: String(Math.round(amountFloat * 100)),
                     maxInstallments: installments,
                     minInstallments: installments,
-                    merchantCode: cfg.values.merchantKey,
+                    merchantCode: merchantKey,
                     customerName,
                     customerDocument,
                     description: 'Venda de equipamento',
@@ -114,9 +129,7 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                 },
             };
 
-            const res = await axios.post(`${cfg.url}/api/orders`, payload, {
-                headers,
-            });
+            const res = await axios.post(`/api/proxy/order/api/orders`, payload);
 
             if (res.status >= 400) {
                 const ui = parseApiError({response: res} as any);

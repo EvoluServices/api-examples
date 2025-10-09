@@ -2,7 +2,7 @@ import {
     CognitoUserPool,
     CognitoUser,
     AuthenticationDetails,
-    CognitoUserSession,
+    CognitoUserSession, CognitoUserAttribute,
 } from 'amazon-cognito-identity-js';
 
 const poolData = {
@@ -12,18 +12,30 @@ const poolData = {
 
 export const userPool = new CognitoUserPool(poolData);
 
+
+type CustomAttrs = Record<string, string>;
+
+function toCustomMap(attrs: CognitoUserAttribute[] | undefined): CustomAttrs | undefined {
+    if (!attrs || !attrs.length) return undefined;
+    return attrs
+        .filter(a => a.getName().startsWith('custom:'))
+        .reduce((acc, a) => {
+            acc[a.getName().replace('custom:', '')] = a.getValue() ?? '';
+            return acc;
+        }, {} as CustomAttrs);
+}
+
+
 export const signIn = (email: string, password: string) => {
     const user = new CognitoUser({ Username: email, Pool: userPool });
-    const authDetails = new AuthenticationDetails({
-        Username: email,
-        Password: password,
-    });
+    const authDetails = new AuthenticationDetails({ Username: email, Password: password });
 
     return new Promise<{
         session?: CognitoUserSession;
         accessToken?: string;
         idToken?: string;
         refreshToken?: string;
+        customAttributes?: CustomAttrs;
         challenge?: 'NEW_PASSWORD_REQUIRED';
         user?: CognitoUser;
     }>((resolve, reject) => {
@@ -33,19 +45,38 @@ export const signIn = (email: string, password: string) => {
                 const idToken = session.getIdToken().getJwtToken();
                 const refreshToken = session.getRefreshToken().getToken();
 
-                resolve({
-                    session,
-                    accessToken,
-                    idToken,
-                    refreshToken,
+                // Busca atributos do perfil (inclui custom:*)
+                user.getUserAttributes((err, attrs) => {
+                    if (err) {
+                        // Se falhar, ainda resolvemos sem customAttributes
+                        return resolve({
+                            session,
+                            accessToken,
+                            idToken,
+                            refreshToken,
+                            user,
+                        });
+                    }
+
+                    const customAttributes = toCustomMap(attrs);
+
+                    resolve({
+                        session,
+                        accessToken,
+                        idToken,
+                        refreshToken,
+                        customAttributes,
+                        user,
+                    });
                 });
             },
-            onFailure: (err) => {
-                reject(err);
-            },
-            newPasswordRequired: (userAttributes, requiredAttributes) => {
-                delete userAttributes.email_verified;
-                delete userAttributes.phone_number_verified;
+
+            onFailure: reject,
+
+            newPasswordRequired: (userAttributes) => {
+                // limpeza padrão
+                delete (userAttributes as any).email_verified;
+                delete (userAttributes as any).phone_number_verified;
 
                 sessionStorage.setItem('cognitoUsername', email);
 

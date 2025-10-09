@@ -10,7 +10,8 @@ import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
 import { parseApiError } from '@/utils/httpErrors';
 import { regexEmail } from '@/utils/regex';
 import axios from 'axios';
-import { getApiConfigFromCookies } from '@/utils/apiConfig';
+import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 import PosStatusPoller from '@/components/pos/PosStatusPoller';
 import type { TxResult } from '@/types/transactions';
 
@@ -21,6 +22,35 @@ type PosProps = {
     onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
     onPaymentChange?: (v: number) => void;
 };
+
+type Env = 'dev' | 'prod';
+type IdTokenPayload = Record<string, any>;
+
+function readTokenPayload(): IdTokenPayload | null {
+  const token = Cookies.get('api-examples-token');
+  if (!token) return null;
+  try {
+    return jwtDecode<IdTokenPayload>(token);
+  } catch {
+    return null;
+  }
+}
+
+function resolveEnv(payload: IdTokenPayload): Env {
+  return payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
+}
+
+function getCredsFromToken() {
+  const payload = readTokenPayload();
+  if (!payload) return null;
+  const env = resolveEnv(payload);
+  return {
+    env,
+    apiKey: payload[`custom:${env}-username`] ?? '',
+    apiSecret: payload[`custom:${env}-password`] ?? '',
+    merchantKey: payload[`custom:${env}-keyId`] ?? '',
+  };
+}
 
 export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: PosProps) {
     const {
@@ -83,6 +113,17 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
             return;
         }
 
+        const credsCheck = getCredsFromToken();
+        if (!credsCheck || !credsCheck.apiKey || !credsCheck.apiSecret) {
+            setSnackbar({
+                open: true,
+                severity: 'error',
+                title: 'Credenciais ausentes',
+                description: 'Não foi possível ler usuário/senha do token. Faça login novamente.',
+            });
+            return;
+        }
+
         const token = await fetchBearerToken();
         if (!token) {
             setSnackbar({
@@ -121,11 +162,12 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
 
     const fetchBearerToken = async () => {
         try {
-            const config = getApiConfigFromCookies();
+            const creds = getCredsFromToken();
+            if (!creds) throw new Error('Sem token Cognito.');
             const body = {
                 auth: {
-                    username: config.values.apiKey,
-                    apiKey: config.values.apiSecret,
+                    username: creds.apiKey,
+                    apiKey: creds.apiSecret,
                 },
             };
             const res = await axios.post(`/api/proxy/pos/remote/token`, body);
@@ -139,10 +181,13 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
 
     const postRemoteTransaction = async (token: string) => {
         try {
-            const config = getApiConfigFromCookies();
+            const creds = getCredsFromToken();
+            if (!creds || !creds.merchantKey) {
+                throw new Error('Chave de Integração do Estabelecimento ausente no token.');
+            }
             const payload = {
                 transaction: {
-                    merchantId: config.values.merchantKey,
+                    merchantId: creds.merchantKey,
                     value: amount,
                     installments: parseInt(installments || '1'),
                     clientName: customerName,
@@ -174,7 +219,14 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
             (paymentType === 'credit' && !!cardBrand && !!installments);
 
         if (baseOk && nameOk && docOk && emailOk) {
-            void handleSubmit();
+            handleSubmit().catch(() => {
+                setSnackbar({
+                    open: true,
+                    severity: 'error',
+                    title: 'Erro ao enviar transação',
+                    description: 'Não foi possível iniciar a transação do POS.',
+                });
+            });
         }
     }, [autoSubmitNonce]);
 
