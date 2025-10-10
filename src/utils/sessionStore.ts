@@ -23,7 +23,7 @@ export function newSessionId(): string {
     return crypto.randomBytes(32).toString('hex'); // 256 bits
 }
 
-export async function putSession(s: Omit<StoredSession, 'expiresAt'>): Promise<void> {
+export async function putSession(s: Omit<StoredSession, 'expiresAt'>, p0: { tableName: string; ttlSeconds: number; }): Promise<void> {
     const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECS;
     await client.send(new PutCommand({
         TableName: TABLE,
