@@ -1,0 +1,15 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - echo "[DEBUG] Checking APP_SESSION_SECRET length..."
+            - node -e "const s=process.env.APP_SESSION_SECRET||'';console.log('[DEBUG] APP_SESSION_SECRET length (bytes):', new TextEncoder().encode(s).length);"
+        build:
+          commands:
+            # injeta no .env.production para o bundle de servidor
+            - echo "APP_SESSION_SECRET=$APP_SESSION_SECRET" >> .env.production
+            - npm ci
+            - npm run build
+    appRoot: .

@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverRuntimeConfig: {
+    APP_SESSION_SECRET: process.env.APP_SESSION_SECRET,
+  },
   reactStrictMode: true,
 };
 
