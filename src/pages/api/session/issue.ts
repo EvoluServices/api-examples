@@ -29,7 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const sessionId = newSessionId();
 
-        // 👉 força nome da tabela e TTL fixo
         await putSession(
             { sessionId, env, apiKey, apiSecret, merchantKey, merchantName },
             { tableName: SESSIONS_TABLE, ttlSeconds: DEFAULT_TTL_SECONDS }
