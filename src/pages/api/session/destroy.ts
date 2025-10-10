@@ -1,4 +1,3 @@
-// pages/api/session/destroy.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { parse } from 'cookie';
 import { DynamoDBClient, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
@@ -23,9 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         res.setHeader('Set-Cookie', clearSessionCookie(req));
-        // Evita cachear a resposta
         res.setHeader('Cache-Control', 'no-store');
-
         return res.status(200).json({ ok: true });
     } catch (e: any) {
         console.error('[session/destroy] error', e?.message);

@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { jwtDecode } from 'jwt-decode';
-import { serialize } from 'cookie';
 import { newSessionId, putSession } from '@/utils/sessionStore';
+import { setSessionCookie } from '@/utils/sessionCookie';
 
-type IdTokenPayload = Record<string, any>;
-
-const SESSIONS_TABLE = 'api-examples-sessions';
 const DEFAULT_TTL_SECONDS = 28800;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -15,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!idToken) return res.status(400).json({ ok: false, error: 'missing_id_token' });
 
     try {
-        const payload = jwtDecode<IdTokenPayload>(idToken);
+        const payload = jwtDecode<Record<string, any>>(idToken);
 
         const env: 'dev' | 'prod' = payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
         const apiKey = payload[`custom:${env}-username`] ?? '';
@@ -28,28 +25,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const sessionId = newSessionId();
+        await putSession({ sessionId, env, apiKey, apiSecret, merchantKey, merchantName });
 
-        await putSession(
-            { sessionId, env, apiKey, apiSecret, merchantKey, merchantName },
-            { tableName: SESSIONS_TABLE, ttlSeconds: DEFAULT_TTL_SECONDS }
-        );
-
-        res.setHeader(
-            'Set-Cookie',
-            serialize('app-session', sessionId, {
-                httpOnly: true,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-                path: '/',
-                maxAge: DEFAULT_TTL_SECONDS,
-            })
-        );
+        res.setHeader('Set-Cookie', setSessionCookie(req, sessionId, DEFAULT_TTL_SECONDS));
+        res.setHeader('Cache-Control', 'no-store');
 
         return res.status(200).json({ ok: true });
     } catch (e: any) {
         console.error('[session/issue] error', e?.message || e);
-        return res
-            .status(400)
-            .json({ ok: false, error: 'issue_failed', message: e?.message || 'decode_failed' });
+        return res.status(400).json({ ok: false, error: 'issue_failed', message: e?.message || 'decode_failed' });
     }
 }

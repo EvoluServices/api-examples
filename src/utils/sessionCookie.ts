@@ -4,30 +4,28 @@ import { serialize } from 'cookie';
 
 export const SESSION_COOKIE = 'app-session';
 
-function cookieOptions(req: NextApiRequest) {
+/**
+ * ATENÇÃO: Para evitar mismatch, vamos padronizar SEM definir "domain".
+ * Isso cria um cookie host-only — e iremos APAGAR também sem "domain".
+ */
+function baseCookieOptions() {
     const isProd = process.env.NODE_ENV === 'production';
-    const host = (req.headers.host || '').split(':')[0];
-
-    // Em dev (localhost) NÃO use domain. Em prod, use seu domínio se não for localhost.
-    const domain =
-        isProd && host && !/^(localhost|127\.0\.0\.1)$/i.test(host) ? host : undefined;
-
     return {
         httpOnly: true,
         sameSite: 'lax' as const,
         secure: isProd,
         path: '/',
-        domain, // undefined em dev => cookie host-only; em prod setamos domínio
     };
 }
 
-export function setSessionCookie(req: NextApiRequest, value: string, maxAgeSec: number) {
-    return serialize(SESSION_COOKIE, value, { ...cookieOptions(req), maxAge: maxAgeSec });
+export function setSessionCookie(_req: NextApiRequest, value: string, maxAgeSec: number) {
+    // _req mantido por compatibilidade se um dia quiser diferenciar por host
+    return serialize(SESSION_COOKIE, value, { ...baseCookieOptions(), maxAge: maxAgeSec });
 }
 
-export function clearSessionCookie(req: NextApiRequest) {
+export function clearSessionCookie(_req: NextApiRequest) {
     return serialize(SESSION_COOKIE, '', {
-        ...cookieOptions(req),
+        ...baseCookieOptions(),
         maxAge: 0,
         expires: new Date(0),
     });
