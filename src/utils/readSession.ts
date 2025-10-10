@@ -1,20 +1,19 @@
-// utils/readSession.ts
 import type { NextApiRequest } from 'next';
-import { jwtDecrypt } from 'jose';
-
-const secret = new TextEncoder().encode(process.env.APP_SESSION_SECRET!);
+import { getSession } from '@/utils/sessionStore';
 
 export async function readSession(req: NextApiRequest) {
     const cookieHeader = req.headers.cookie || '';
     const cookies = Object.fromEntries(
         cookieHeader.split(';').map(c => c.trim().split('=')).map(([k, ...v]) => [k, decodeURIComponent(v.join('='))])
     );
-    const jwe = cookies['app-session'];
-    if (!jwe) throw new Error('no_session_cookie');
+    const sessionId = cookies['app-session'];
+    if (!sessionId) throw new Error('no_session_cookie');
 
-    const { payload } = await jwtDecrypt(jwe, secret);
-    // payload é o mesmo objeto que você encriptou em issue.ts
-    return payload as {
+    const s = await getSession(sessionId);
+    if (!s) throw new Error('session_not_found');
+
+    const { env, apiKey, apiSecret, merchantKey, merchantName } = s;
+    return { env, apiKey, apiSecret, merchantKey, merchantName } as {
         env: 'dev' | 'prod';
         apiKey: string;
         apiSecret: string;
