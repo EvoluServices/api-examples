@@ -11,7 +11,7 @@ export default function CurrencyInput({ value, onChange, error }: Props) {
         const digits = raw.replace(/\D/g, '');
         const number = parseFloat(digits) / 100;
 
-        // Se vazio ou inválido, retorna string vazia
+
         if (isNaN(number)) return '';
 
         return number.toLocaleString('pt-BR', {

@@ -178,7 +178,7 @@ export default function ResetPassword({ open, onClose }: ResetPasswordProps) {
                 {step === 'success' && (
                     <Box sx={{ textAlign: 'center', my: 2 }}>
                         <Typography sx={{ mb: 2 }}>
-                            O modal será fechado em 3 segundos.
+
                         </Typography>
                     </Box>
                 )}

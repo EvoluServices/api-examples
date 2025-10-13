@@ -34,7 +34,6 @@ export default function NewPasswordPage() {
                 await router.push('/transactions');
             }
         } catch (err) {
-            console.error(err);
             setError('Erro ao atualizar senha. Tente novamente.');
         }
     };
@@ -47,7 +46,7 @@ export default function NewPasswordPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 p: 2,
-                bgcolor: '#f5f5f5', // fundo geral da página
+                bgcolor: '#f5f5f5',
             }}
         >
             <Box

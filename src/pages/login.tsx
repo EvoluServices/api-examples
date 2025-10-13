@@ -2,7 +2,7 @@ import {useState, useCallback} from 'react';
 import {useRouter} from 'next/router';
 import Cookies from 'js-cookie';
 
-// MUI Components
+
 import {
     Box,
     TextField,
@@ -16,12 +16,12 @@ import {
 } from '@mui/material';
 import {Visibility, VisibilityOff} from '@mui/icons-material';
 
-// Custom Services & Contexts
+
 import {signIn} from '@/services/cognito';
 import {useTempUser} from '@/contexts/TempUserContext';
 import ResetPassword from '@/components/ResetPassword';
 
-// Interface opcional para segurança de tipos
+
 interface SignInResult {
     challenge?: string;
     user?: any;
@@ -29,7 +29,7 @@ interface SignInResult {
     userAttributes?: { [key: string]: any };
 }
 
-// --- Componente de Login ---
+
 export default function Login() {
     const router = useRouter();
     const {setTempUser} = useTempUser();
@@ -41,7 +41,7 @@ export default function Login() {
     const [openReset, setOpenReset] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // Validação simples de email
+
     const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     const isButtonDisabled =
@@ -83,7 +83,7 @@ export default function Login() {
             setLoading(true);
             const result: SignInResult = await signIn(email, password);
 
-            // Fluxo 1: Nova Senha Obrigatória
+
             if (result?.challenge === 'NEW_PASSWORD_REQUIRED' && result?.user) {
                 setTempUser(result.user);
                 sessionStorage.setItem('cognitoUsername', email);
@@ -122,7 +122,7 @@ export default function Login() {
             sx={{minHeight: '100vh', bgcolor: 'background.default'}}
         >
             <Box display="flex" flexDirection="column" alignItems="center">
-                {/* Box de Login */}
+
                 <Box
                     p={4}
                     borderRadius="16px"
@@ -146,7 +146,7 @@ export default function Login() {
                         </Alert>
                     )}
 
-                    {/* Campo Email */}
+
                     <TextField
                         label="Email"
                         value={email}
@@ -158,7 +158,7 @@ export default function Login() {
                         onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                     />
 
-                    {/* Campo Senha */}
+
                     <TextField
                         label="Senha"
                         type={showPassword ? 'text' : 'password'}
@@ -182,7 +182,7 @@ export default function Login() {
                         }}
                     />
 
-                    {/* Botão de Entrar */}
+
                     <Button
                         variant="contained"
                         color="primary"
@@ -202,7 +202,7 @@ export default function Login() {
                     </Button>
                 </Box>
 
-                {/* Link Esqueci a senha */}
+
                 <Button
                     variant="text"
                     onClick={() => setOpenReset(true)}
@@ -218,7 +218,7 @@ export default function Login() {
                 </Button>
             </Box>
 
-            {/* Modal ResetPassword */}
+
             <ResetPassword open={openReset} onClose={() => setOpenReset(false)}/>
         </Grid>
     );

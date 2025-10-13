@@ -165,7 +165,7 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
 
     return (
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
-            {/* Linha Bandeiras / Parcelamento */}
+
             <Box sx={{display: 'flex', flexDirection: 'row', gap: 2}}>
                 {showBrand && (
                     <Box sx={{width: '50%', minWidth: 200}}>
@@ -218,7 +218,7 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                 )}
             </Box>
 
-            {/* Campos do Cliente */}
+
             {showCustomerFields && (
                 <Box sx={{display: 'flex', flexDirection: 'column', gap: 1, minWidth: 500}}>
                     <TextField
@@ -253,7 +253,7 @@ export default function Order({autoSubmitNonce, onResultChange, onStatusChange, 
                 </Box>
             )}
 
-            {/* Botões */}
+
             {showCustomerFields && (
                 <Box sx={{display: 'flex', gap: 2, mt: 1}}>
                     <Button

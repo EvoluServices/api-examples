@@ -45,10 +45,10 @@ export const signIn = (email: string, password: string) => {
                 const idToken = session.getIdToken().getJwtToken();
                 const refreshToken = session.getRefreshToken().getToken();
 
-                // Busca atributos do perfil (inclui custom:*)
+
                 user.getUserAttributes((err, attrs) => {
                     if (err) {
-                        // Se falhar, ainda resolvemos sem customAttributes
+
                         return resolve({
                             session,
                             accessToken,
@@ -74,7 +74,7 @@ export const signIn = (email: string, password: string) => {
             onFailure: reject,
 
             newPasswordRequired: (userAttributes) => {
-                // limpeza padrão
+
                 delete (userAttributes as any).email_verified;
                 delete (userAttributes as any).phone_number_verified;
 

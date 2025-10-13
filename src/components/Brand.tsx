@@ -6,7 +6,7 @@ export interface Brand {
 }
 
 export const brands: Brand[] = [
-  // Crédito
+
   {
     label: 'Visa',
     value: 'VISA_CREDITO',
@@ -80,7 +80,7 @@ export const brands: Brand[] = [
     type: 'credit',
   },
 
-  // Débito
+
   {
     label: 'Visa',
     value: 'VISA_DEBITO',

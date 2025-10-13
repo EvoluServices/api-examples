@@ -185,7 +185,7 @@ export default function TransactionsPage() {
                         </Button>
                     </Box>
 
-                    {/* MÉTODOS */}
+
                     {paymentMethods && (
                         <Box
                             sx={{
@@ -227,7 +227,7 @@ export default function TransactionsPage() {
                         </Box>
                     )}
 
-                    {/* FORMULÁRIOS */}
+
                     {selectedProduct === 'order' && (
                         <Order
                             key={`order-${autoSubmitNonce}`}
@@ -260,7 +260,7 @@ export default function TransactionsPage() {
                     )}
                 </Box>
 
-                {/* COLUNA DIREITA */}
+
                 <Box
                     sx={{
                         flex: 1,
@@ -272,7 +272,7 @@ export default function TransactionsPage() {
                     }}
                 >
                     <Box key={`${selectedProduct || 'none'}-${autoSubmitNonce}`} sx={{textAlign: 'center'}}>
-                        {/* COLUNA DIREITA */}
+
                         {trxResult ? (
                             <>
                                 {trxStatus === 'APPROVED' && (

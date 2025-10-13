@@ -135,10 +135,10 @@ export default function Index() {
 
       const tokens = await refreshTokens(user);
 
-      // Atualiza o cookie com o novo ID Token
+
       Cookies.set('api-examples-token', tokens.idToken, { expires: 1 });
 
-      // Reaplica estados a partir do novo token
+
       const payload = jwtDecode<IdTokenPayload>(tokens.idToken);
       fillStateFromTokenPayload(payload);
     }

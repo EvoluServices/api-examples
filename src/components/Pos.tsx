@@ -262,7 +262,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                     </FormControl>
                 </Grid>
 
-                {/* Bandeira (mostra se houver modalidade) */}
+
                 {showBrand && (
                     <Grid size={{ xs: 12, md: 4 }}>
                         <FormControl fullWidth>
@@ -297,7 +297,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                     </Grid>
                 )}
 
-                {/* Parcelamento (só no crédito e com bandeira escolhida) */}
+
                 {showInstallments && (
                     <Grid size={{ xs: 12, md: 5 }}>
                         <FormControl fullWidth>
@@ -333,7 +333,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                 )}
             </Grid>
 
-            {/* Campos do cliente */}
+
             {showCustomerFields && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <TextField
@@ -368,7 +368,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                 </Box>
             )}
 
-            {/* Botões */}
+
             {showSubmitButton && (
                 <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                     <Button
@@ -419,7 +419,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                 </Box>
             )}
 
-            {/* Poller sem UI (emite callbacks para o pai) */}
+
             {posTxId && (
                 <PosStatusPoller
                     transactionId={posTxId}
@@ -447,7 +447,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                 />
             )}
 
-            {/* Snackbar */}
+
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={5000}
