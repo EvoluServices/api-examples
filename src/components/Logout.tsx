@@ -4,7 +4,6 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import ListItemIcon from '@mui/material/ListItemIcon';
 
 function UserMenu() {
     const router = useRouter();
@@ -24,10 +23,15 @@ function UserMenu() {
         color: '#fff',
     };
 
-    const handleLogout = () => {
-        document.cookie = 'api-examples-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC';
-        handleClose();
-        router.push('/login');
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/session/destroy', { method: 'POST' });
+        } catch (e) {
+            console.error('Erro ao encerrar sessão:', e);
+        } finally {
+            handleClose();
+            router.push('/login');
+        }
     };
 
     return (
@@ -68,12 +72,3 @@ function UserMenu() {
 }
 
 export default UserMenu;
-
-
-
-
-
-
-
-
-

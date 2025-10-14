@@ -1,7 +1,5 @@
 import {useState, useCallback} from 'react';
 import {useRouter} from 'next/router';
-import Cookies from 'js-cookie';
-
 
 import {
     Box,
@@ -16,11 +14,9 @@ import {
 } from '@mui/material';
 import {Visibility, VisibilityOff} from '@mui/icons-material';
 
-
 import {signIn} from '@/services/cognito';
 import {useTempUser} from '@/contexts/TempUserContext';
 import ResetPassword from '@/components/ResetPassword';
-
 
 interface SignInResult {
     challenge?: string;
@@ -28,7 +24,6 @@ interface SignInResult {
     idToken?: string;
     userAttributes?: { [key: string]: any };
 }
-
 
 export default function Login() {
     const router = useRouter();
@@ -41,31 +36,12 @@ export default function Login() {
     const [openReset, setOpenReset] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-
+    // Validação simples de email
     const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     const isButtonDisabled =
         !email || !password || !isEmailValid(email) || loading;
 
-    const saveCustomAttributes = (userAttributes: { [key: string]: any }) => {
-        const customAttrs = {
-            keyId: userAttributes['custom:dev-keyId'],
-            merchantName: userAttributes['custom:dev-merchantName'],
-            selectedEnv: userAttributes['custom:selected-env'],
-        };
-
-        const cookieOptions = {
-            expires: 1,
-            secure: process.env.NODE_ENV === 'production',
-        };
-
-        if (customAttrs.merchantName) {
-            Cookies.set('merchantName', customAttrs.merchantName, cookieOptions);
-        }
-        if (customAttrs.keyId) {
-            Cookies.set('keyId', customAttrs.keyId, cookieOptions);
-        }
-    };
 
     const handleLogin = useCallback(async () => {
         setError('');
@@ -83,7 +59,6 @@ export default function Login() {
             setLoading(true);
             const result: SignInResult = await signIn(email, password);
 
-
             if (result?.challenge === 'NEW_PASSWORD_REQUIRED' && result?.user) {
                 setTempUser(result.user);
                 sessionStorage.setItem('cognitoUsername', email);
@@ -91,11 +66,18 @@ export default function Login() {
                 return;
             }
 
-            if (result.idToken != null) {
-                Cookies.set('api-examples-token', result.idToken, {expires: 1});
+            if (result.idToken) {
+                // Emite cookie HttpOnly de sessão no servidor
+                const resp = await fetch('/api/session/issue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken: result.idToken }),
+                });
 
-                if (result?.userAttributes) {
-                    saveCustomAttributes(result.userAttributes);
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    const msg = data?.error || 'Falha ao criar sessão segura.';
+                    throw new Error(msg);
                 }
 
                 await router.push('/transactions');

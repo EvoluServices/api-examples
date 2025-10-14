@@ -10,8 +10,6 @@ import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
 import { parseApiError } from '@/utils/httpErrors';
 import { regexEmail } from '@/utils/regex';
 import axios from 'axios';
-import Cookies from 'js-cookie';
-import { jwtDecode } from 'jwt-decode';
 import PinpadStatusPoller from '@/components/pinpad/PinpadStatusPoller';
 import type { TxResult } from '@/types/transactions';
 
@@ -23,34 +21,6 @@ type PinpadProps = {
     onPaymentChange?: (v: number) => void;
 };
 
-type Env = 'dev' | 'prod';
-type IdTokenPayload = Record<string, any>;
-
-function readTokenPayload(): IdTokenPayload | null {
-  const token = Cookies.get('api-examples-token');
-  if (!token) return null;
-  try {
-    return jwtDecode<IdTokenPayload>(token);
-  } catch {
-    return null;
-  }
-}
-
-function resolveEnv(payload: IdTokenPayload): Env {
-  return payload['custom:selected-env'] === 'prod' ? 'prod' : 'dev';
-}
-
-function getCredsFromToken() {
-  const payload = readTokenPayload();
-  if (!payload) return null;
-  const env = resolveEnv(payload);
-  return {
-    env,
-    apiKey: payload[`custom:${env}-username`] ?? '',
-    apiSecret: payload[`custom:${env}-password`] ?? '',
-    merchantKey: payload[`custom:${env}-keyId`] ?? '',
-  };
-}
 
 export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: PinpadProps) {
     const {
@@ -113,16 +83,6 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
             return;
         }
 
-        const creds = getCredsFromToken();
-        if (!creds || !creds.apiKey || !creds.apiSecret) {
-          setSnackbar({
-            open: true,
-            severity: 'error',
-            title: 'Credenciais ausentes',
-            description: 'Não foi possível ler usuário/senha do token. Faça login novamente.',
-          });
-          return;
-        }
 
         const token = await fetchBearerToken();
         if (!token) {
@@ -162,15 +122,8 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
 
     const fetchBearerToken = async () => {
       try {
-        const creds = getCredsFromToken();
-        if (!creds) throw new Error('Sem token Cognito.');
-        const body = {
-          auth: {
-            username: creds.apiKey,
-            apiKey: creds.apiSecret,
-          },
-        };
-        const res = await axios.post(`/api/proxy/pinpad/remote/token`, body);
+        // Proxy do Pinpad já injeta Basic Auth via sessão JWE; body pode ser vazio
+        const res = await axios.post(`/api/proxy/pinpad/remote/token`, {});
         return res.data?.Bearer || null;
       } catch (err) {
         const { title, description } = parseApiError(err);
@@ -181,13 +134,16 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
 
     const postRemoteTransaction = async (token: string) => {
       try {
-        const creds = getCredsFromToken();
-        if (!creds || !creds.merchantKey) {
-          throw new Error('Chave de Integração do Estabelecimento ausente no token.');
+        // Busca merchantKey a partir da sessão HttpOnly (JWE)
+        const meResp = await axios.get('/api/session/me');
+        const merchantKey: string | undefined = meResp?.data?.merchantKey;
+        if (!merchantKey) {
+          throw new Error('Chave de Integração do Estabelecimento ausente na sessão.');
         }
+
         const payload = {
           transaction: {
-            merchantId: creds.merchantKey,
+            merchantId: merchantKey,
             value: amount,
             installments: parseInt(installments || '1'),
             clientName: customerName,
