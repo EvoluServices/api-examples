@@ -336,6 +336,7 @@ export default function Pinpad({autoSubmitNonce, onResultChange, onStatusChange,
                             backgroundColor: '#FFF',
                             color: '#0071EB',
                             minWidth: 120,
+                            minHeight: 60,
                             boxShadow: 'none',
                             border: '1px solid #ccc',
                         }}
