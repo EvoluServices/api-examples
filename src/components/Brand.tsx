@@ -68,12 +68,6 @@ export const brands: Brand[] = [
     type: 'credit',
   },
   {
-    label: 'Discover',
-    value: 'DISCOVER_CREDITO',
-    images: '/brands/discover.png',
-    type: 'credit',
-  },
-  {
     label: 'Diners Club',
     value: 'DINERS_CREDITO',
     images: '/brands/diners.png',
