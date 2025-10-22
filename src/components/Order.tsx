@@ -202,7 +202,12 @@ export default function Order({
             </Typography>
         </Box>
     );
-
+    const [errorFields, setErrorFields] = useState({
+        recurrenceDays: false,
+        recurrenceQuantity: false,
+        customerName: false,
+        customerDocument: false,
+    });
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -261,12 +266,24 @@ export default function Order({
             )}
 
             {/* Campos recorrência */}
+            {/* Campos recorrência */}
             {recurrenceType === 'MENSAL' && (
                 <TextField
                     label="Quantidade de cobranças"
-                    type="number"
+                    type="text"
                     value={recurrenceQuantity}
-                    onChange={(e) => setRecurrenceQuantity(e.target.value)}
+                    onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ''); // só números
+                        setRecurrenceQuantity(value);
+                    }}
+                    onBlur={() => {
+                        if (!recurrenceQuantity) {
+                            setErrorFields((prev) => ({ ...prev, recurrenceQuantity: true }));
+                        } else {
+                            setErrorFields((prev) => ({ ...prev, recurrenceQuantity: false }));
+                        }
+                    }}
+                    error={!recurrenceQuantity && errorFields.recurrenceQuantity}
                     fullWidth
                     sx={{
                         '& .MuiOutlinedInput-root': {
@@ -282,13 +299,25 @@ export default function Order({
                     }}
                 />
             )}
+
             {recurrenceType === 'FLEXIVEL' && (
                 <Box display="flex" flexDirection="column" gap={2}>
                     <TextField
                         label="Quantidade de dias"
-                        type="number"
+                        type="text"
                         value={recurrenceDays}
-                        onChange={(e) => setRecurrenceDays(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, ''); // só números
+                            setRecurrenceDays(value);
+                        }}
+                        onBlur={() => {
+                            if (!recurrenceDays) {
+                                setErrorFields((prev) => ({ ...prev, recurrenceDays: true }));
+                            } else {
+                                setErrorFields((prev) => ({ ...prev, recurrenceDays: false }));
+                            }
+                        }}
+                        error={!recurrenceDays && errorFields.recurrenceDays}
                         fullWidth
                         sx={{
                             '& .MuiOutlinedInput-root': {
@@ -299,17 +328,30 @@ export default function Order({
                                 alignItems: 'center',
                                 fontWeight: 500,
                                 padding: '0 14px',
-                                fontSize: '14px'
+                                fontSize: '14px',
                             },
                             '& .MuiInputLabel-root': { fontWeight: 500 },
                         }}
                     />
+
                     <TextField
                         label="Quantidade de cobranças"
-                        type="number"
+                        type="text"
                         value={recurrenceQuantity}
-                        onChange={(e) => setRecurrenceQuantity(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, ''); // só números
+                            setRecurrenceQuantity(value);
+                        }}
+                        onBlur={() => {
+                            if (!recurrenceQuantity) {
+                                setErrorFields((prev) => ({ ...prev, recurrenceQuantity: true }));
+                            } else {
+                                setErrorFields((prev) => ({ ...prev, recurrenceQuantity: false }));
+                            }
+                        }}
+                        error={!recurrenceQuantity && errorFields.recurrenceQuantity}
                         fullWidth
+                        disabled={!recurrenceDays} // só habilita se o campo anterior tiver valor
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 backgroundColor: '#fff',
@@ -365,6 +407,14 @@ export default function Order({
                         label="Nome do Cliente"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
+                        onBlur={() => {
+                            if (!customerName.trim()) {
+                                setErrorFields((prev) => ({ ...prev, customerName: true }));
+                            } else {
+                                setErrorFields((prev) => ({ ...prev, customerName: false }));
+                            }
+                        }}
+                        error={!customerName && errorFields.customerName}
                         fullWidth
                         sx={{
                             '& .MuiOutlinedInput-root': {
@@ -379,10 +429,22 @@ export default function Order({
                             '& .MuiInputLabel-root': { fontWeight: 500 },
                         }}
                     />
+
                     <TextField
                         label="CPF/CNPJ do Cliente"
                         value={maskCpfCnpj(customerDocument)}
-                        onChange={(e) => setCustomerDocument(onlyDigits(e.target.value).slice(0, 14))}
+                        onChange={(e) => {
+                            const value = onlyDigits(e.target.value).slice(0, 14); // só números
+                            setCustomerDocument(value);
+                        }}
+                        onBlur={() => {
+                            if (!customerDocument.trim()) {
+                                setErrorFields((prev) => ({ ...prev, customerDocument: true }));
+                            } else {
+                                setErrorFields((prev) => ({ ...prev, customerDocument: false }));
+                            }
+                        }}
+                        error={!customerDocument && errorFields.customerDocument}
                         fullWidth
                         sx={{
                             '& .MuiOutlinedInput-root': {
