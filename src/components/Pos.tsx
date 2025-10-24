@@ -1,28 +1,50 @@
 import React, {useEffect, useState} from 'react';
 import {
-    Box, FormControl, InputLabel, Select, MenuItem, TextField, Button,
-    Snackbar, Alert, AlertColor, Typography,
-    Grid
+    Box,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    TextField,
+    Button,
+    Snackbar,
+    Alert,
+    AlertColor,
+    Typography,
+    Grid,
 } from '@mui/material';
-import { brands } from '@/components/Brand';
-import { useTransaction } from '@/contexts/TransactionContext';
+import {IconButton} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+
+import {brands} from '@/components/Brand';
+import {useTransaction} from '@/contexts/TransactionContext';
 import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
-import { parseApiError } from '@/utils/httpErrors';
-import { regexEmail } from '@/utils/regex';
+import {parseApiError} from '@/utils/httpErrors';
+import {regexEmail} from '@/utils/regex';
 import axios from 'axios';
 import PosStatusPoller from '@/components/pos/PosStatusPoller';
-import type { TxResult } from '@/types/transactions';
+import type {TxResult} from '@/types/transactions';
+import PinpadStatusPoller from "@/components/pinpad/PinpadStatusPoller";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import PaymentIcon from "@mui/icons-material/Payment";
+
 
 type PosProps = {
     autoSubmitNonce?: number;
     onConclude?: () => void;
     onResultChange?: React.Dispatch<React.SetStateAction<TxResult>>;
-    onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
+    onStatusChange?: (
+        s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR'
+    ) => void;
     onPaymentChange?: (v: number) => void;
 };
 
-
-export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, onPaymentChange,}: PosProps) {
+export default function Pos({
+                                autoSubmitNonce,
+                                onResultChange,
+                                onStatusChange,
+                                onPaymentChange,
+                            }: PosProps) {
     const {
         amount,
         paymentType,
@@ -55,7 +77,11 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
     const [touchedDocument, setTouchedDocument] = useState(false);
     const [touchedEmail, setTouchedEmail] = useState(false);
 
-    const [posTxId, setPosTxId] = useState<string | null>(null);
+    const [pinpadTxId, setPinpadTxId] = useState<string | null>(null);
+
+    // Tipo de repasse dentro do split: manual ou automático
+    const [repasseType, setRepasseType] = useState<'manual' | 'automatico' | null>(null);
+
 
     const [snackbar, setSnackbar] = useState({
         open: false,
@@ -64,7 +90,28 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
         description: '',
     });
 
+    // ------------------------------------------------------
+    // 🧩 Parte 1 - Estados de controle do fluxo de venda
+    // ------------------------------------------------------
+
+    // Tipo de venda: 'convencional', 'split' ou nenhum selecionado ainda
+    const [saleType, setSaleType] = useState<'convencional' | 'split' | null>(null);
+
+    // Lista de fornecedores e regras de split
+    const [splits, setSplits] = useState<
+        { code: string; value: string; chargeFees: boolean }[]
+    >([]);
+
+    // Lista simulada de fornecedores (pode vir de API futuramente)
+    const fornecedores = [
+        {code: '9YTDOO', name: 'Fornecedor 1'},
+        {code: '0I52ZJ', name: 'Fornecedor 2'},
+        {code: 'AB12CD', name: 'Fornecedor 3'},
+    ];
+
+    // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
+
         const docDigits = onlyDigits(customerDocument);
         const validName = customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName);
         const validDoc = isCpfCnpjLenValid(docDigits);
@@ -83,6 +130,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
             return;
         }
 
+
         const token = await fetchBearerToken();
         if (!token) {
             setSnackbar({
@@ -98,7 +146,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
         if (response?.success === 'true') {
             const txId = response.transactionId as string;
 
-            setPosTxId(txId);
+            setPinpadTxId(txId);
             onResultChange?.({
                 uuid: txId,
                 customerName,
@@ -120,47 +168,80 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
     };
 
     const fetchBearerToken = async () => {
-      try {
-        // O proxy do POS injeta Basic Auth via sessão JWE; body pode ser vazio
-        const res = await axios.post('/api/proxy/pos/remote/token', {});
-        return res.data?.Bearer || null;
-      } catch (err) {
-        const { title, description } = parseApiError(err);
-        setSnackbar({ open: true, severity: 'error', title, description });
-        return null;
-      }
+        try {
+            // Proxy do Pinpad já injeta Basic Auth via sessão JWE; body pode ser vazio
+            const res = await axios.post(`/api/proxy/pinpad/remote/token`, {});
+            return res.data?.Bearer || null;
+        } catch (err) {
+            const {title, description} = parseApiError(err);
+            setSnackbar({open: true, severity: 'error', title, description});
+            return null;
+        }
     };
 
     const postRemoteTransaction = async (token: string) => {
-      try {
-        // Busca merchantKey a partir da sessão HttpOnly (JWE)
-        const meResp = await axios.get('/api/session/me');
-        const merchantKey: string | undefined = meResp?.data?.merchantKey;
-        if (!merchantKey) {
-          throw new Error('Chave de Integração do Estabelecimento ausente na sessão.');
-        }
+        try {
+            const meResp = await axios.get('/api/session/me');
+            const merchantKey: string | undefined = meResp?.data?.merchantKey;
+            if (!merchantKey) {
+                throw new Error('Chave de Integração do Estabelecimento ausente na sessão.');
+            }
 
-        const payload = {
-          transaction: {
-            merchantId: merchantKey,
-            value: amount,
-            installments: parseInt(installments || '1'),
-            clientName: customerName,
-            clientDocument: customerDocument,
-            clientEmail: customerEmail,
-            paymentBrand: cardBrand,
-            callbackUrl:
-              'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
-          },
-        };
-        const headers = { bearer: token, 'Content-Type': 'application/json' };
-        const res = await axios.post('/api/proxy/pos/remote/transaction', payload, { headers });
-        return res.data;
-      } catch (error) {
-        const { title, description } = parseApiError(error);
-        setSnackbar({ open: true, severity: 'error', title, description });
-        return null;
-      }
+            const cleanedValue = String(amount)
+                .replace(/\s/g, '')
+                .replace(',', '.')
+                .replace(/[^\d.]/g, '');
+
+            const parsedValue = parseFloat(cleanedValue);
+
+            if (isNaN(parsedValue) || parsedValue <= 0) {
+                setSnackbar({
+                    open: true,
+                    severity: 'error',
+                    title: 'Valor inválido',
+                    description: 'Informe um valor válido antes de finalizar a venda.',
+                });
+                return null;
+            }
+
+            const brandRaw = (cardBrand ?? '').toString().trim();
+
+            if (!brandRaw) {
+                setSnackbar({
+                    open: true,
+                    severity: 'error',
+                    title: 'Bandeira não selecionada',
+                    description: 'Selecione uma bandeira antes de finalizar.',
+                });
+                return null;
+            }
+
+            const cleanedBrand = brandRaw;
+
+            const payload = {
+                transaction: {
+                    merchantId: merchantKey,
+                    value: parsedValue.toFixed(2),
+                    installments: parseInt(installments || '1', 10),
+                    clientName: (customerName || '').trim(),
+                    clientDocument: (customerDocument || '').trim(),
+                    clientEmail: (customerEmail || '').trim(),
+                    paymentBrand: cleanedBrand,
+                    callbackUrl:
+                        'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
+                    ...(saleType === 'split' && {splits}),
+                },
+            };
+
+            const headers = {bearer: token, 'Content-Type': 'application/json'};
+            const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, {headers});
+            return res.data;
+
+        } catch (error: any) {
+            const {title, description} = parseApiError(error);
+            setSnackbar({open: true, severity: 'error', title, description});
+            return null;
+        }
     };
 
     useEffect(() => {
@@ -179,27 +260,264 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                     open: true,
                     severity: 'error',
                     title: 'Erro ao enviar transação',
-                    description: 'Não foi possível iniciar a transação do POS.',
+                    description: 'Não foi possível iniciar a transação do Pinpad.',
                 });
             });
         }
     }, [autoSubmitNonce]);
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, mt: 2}}>
 
-            <Grid container spacing={2}>
+            {/* 🧭 Botões de tipo de venda (Convencional / Split) */}
+            <Box sx={{display: 'flex', gap: 2}}>
+                <Button
+                    variant={saleType === 'convencional' ? 'contained' : 'outlined'}
+                    onClick={() => {
+                        setSaleType('convencional');
+                        setSplits([]); // limpa fornecedores se trocar de tipo
+                        setPaymentType('' as any);
+                        setCardBrand('');
+                        setInstallments('');
+                        clearCustomerData();
+                        setCustomerName('');
+                        setCustomerDocument('');
+                        setCustomerEmail('');
+                    }}
+                    sx={{
+                        flex: 1,
+                        minHeight: 60,
+                        borderRadius: 4,
+                        backgroundColor: saleType === 'convencional' ? '#0071EB' : '#fff',
+                        color: saleType === 'convencional' ? '#fff' : '#0071EB',
+                        border: '1px solid #0071EB',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        '&:hover': {
+                            backgroundColor: saleType === 'convencional' ? '#005bb5' : '#f0f7ff',
+                        },
+                    }}
+                >
+                    Venda Convencional
+                </Button>
 
-                <Grid size={{ xs: 12, md: 3 }}>
-                    <FormControl fullWidth>
-                        <InputLabel id="payment-type-label">Modalidade</InputLabel>
-                        <Select
-                            labelId="payment-type-label"
-                            value={paymentType || ''}
-                            label="Modalidade"
-                            sx={{ borderRadius: 4, backgroundColor: '#fff' }}
-                            onChange={(e) => {
-                                setPaymentType(e.target.value as 'debit' | 'credit');
+                <Button
+                    variant={saleType === 'split' ? 'contained' : 'outlined'}
+                    onClick={() => {
+                        setSaleType('split');
+                        setSplits([]);
+                        setPaymentType('' as any);
+                        setCardBrand('');
+                        setInstallments('');
+                        clearCustomerData();
+                        setCustomerName('');
+                        setCustomerDocument('');
+                        setCustomerEmail('');
+                    }}
+                    sx={{
+                        flex: 1,
+                        minHeight: 60,
+                        borderRadius: 4,
+                        backgroundColor: saleType === 'split' ? '#0071EB' : '#fff',
+                        color: saleType === 'split' ? '#fff' : '#0071EB',
+                        border: '1px solid #0071EB',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        '&:hover': {
+                            backgroundColor: saleType === 'split' ? '#005bb5' : '#f0f7ff',
+                        },
+                    }}
+                >
+                    Split
+                </Button>
+            </Box>
+
+            {/* Tipo de repasse — aparece apenas no modo Split */}
+            {saleType === 'split' && (
+                <Box sx={{display: 'flex', gap: 2}}>
+                    {/* Botão Manual */}
+                    <Button
+                        onClick={() => setRepasseType('manual')}
+                        sx={{
+                            flex: 1,
+                            minHeight: 60,
+                            borderRadius: 4,
+                            border: '2px solid #0071EB',
+                            backgroundColor: '#fff',
+                            color: '#0071EB',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
+                            '&:hover': {backgroundColor: '#f7faff'},
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: '2px solid #0071EB',
+                                backgroundColor: repasseType === 'manual' ? '#0071EB' : 'transparent',
+                            }}
+                        />
+                        MANUAL
+                    </Button>
+
+                    {/* Botão Automático */}
+                    <Button
+                        onClick={() => setRepasseType('automatico')}
+                        sx={{
+                            flex: 1,
+                            minHeight: 60,
+                            borderRadius: 4,
+                            border: '2px solid #0071EB',
+                            backgroundColor: '#fff',
+                            color: '#0071EB',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1,
+                            '&:hover': {backgroundColor: '#f7faff'},
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: '2px solid #0071EB',
+                                backgroundColor:
+                                    repasseType === 'automatico' ? '#0071EB' : 'transparent',
+                            }}
+                        />
+                        AUTOMÁTICO
+                    </Button>
+                </Box>
+            )}
+
+
+            {saleType === 'split' && repasseType && (
+                <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, mt: 2}}>
+                    {splits.map((split, index) => (
+                        <Box
+                            key={index}
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                p: 2,
+                                border: '1px solid #ccc',
+                                borderRadius: 4,
+                                backgroundColor: '#fff',
+                            }}
+                        >
+                            {/* Select de fornecedor */}
+                            <FormControl sx={{flex: 1}}>
+                                <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
+                                <Select
+                                    labelId={`fornecedor-${index}`}
+                                    value={split.code}
+                                    label="Fornecedor"
+                                    onChange={(e) => {
+                                        const updated = [...splits];
+                                        updated[index].code = e.target.value;
+                                        setSplits(updated);
+                                    }}
+                                    sx={{borderRadius: 4}}
+                                >
+                                    {fornecedores.map((f) => (
+                                        <MenuItem key={f.code} value={f.code}>
+                                            {f.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            {/* Valor — aparece só no modo Manual */}
+                            {repasseType === 'manual' && (
+                                <TextField
+                                    label="(R$)"
+                                    type="number"
+                                    value={split.value}
+                                    onChange={(e) => {
+                                        const updated = [...splits];
+                                        updated[index].value = e.target.value;
+                                        setSplits(updated);
+                                    }}
+                                    sx={{flex: 0.6}}
+                                />
+                            )}
+
+                            {/* Taxa */}
+                            <FormControl sx={{flex: 0.5}}>
+                                <InputLabel id={`taxa-${index}`}>Dividir taxa</InputLabel>
+                                <Select
+                                    labelId={`taxa-${index}`}
+                                    value={split.chargeFees ? 'true' : 'false'}
+                                    label="Taxa"
+                                    onChange={(e) => {
+                                        const updated = [...splits];
+                                        updated[index].chargeFees = e.target.value === 'true';
+                                        setSplits(updated);
+                                    }}
+                                    sx={{borderRadius: 4}}
+                                >
+                                    <MenuItem value="true">Sim</MenuItem>
+                                    <MenuItem value="false">Não</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            <IconButton
+                                color="error"
+                                onClick={() => setSplits(splits.filter((_, i) => i !== index))}
+                                aria-label="remover"
+                            >
+                                <DeleteIcon/>
+                            </IconButton>
+
+                        </Box>
+                    ))}
+
+                    {/* Botão adicionar fornecedor */}
+                    <Button
+                        variant="contained"
+                        onClick={() =>
+                            setSplits([...splits, {code: '', value: '', chargeFees: false}])
+                        }
+                        sx={{
+                            alignSelf: 'flex-start',
+                            borderRadius: 4,
+                            backgroundColor: '#0071EB',
+                            fontWeight: 600,
+                            '&:hover': {backgroundColor: '#005bb5'},
+                        }}
+                    >
+                        + Adicionar fornecedor
+                    </Button>
+                </Box>
+            )}
+
+            <Grid container spacing={2} direction="column">
+                <Grid>
+                    <Box
+                        display="flex"
+                        flexDirection="row"
+                        justifyContent="flex-start"
+                        alignItems="center"
+                        flexWrap="wrap"
+                        gap={2}
+                    >
+                        {/* Botão Crédito */}
+                        <Button
+                            variant={paymentType === 'credit' ? 'contained' : 'outlined'}
+                            startIcon={<CreditCardIcon/>}
+                            onClick={() => {
+                                setPaymentType('credit');
                                 setCardBrand('');
                                 setInstallments('');
                                 clearCustomerData();
@@ -210,23 +528,73 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                                 setTouchedDocument(false);
                                 setTouchedEmail(false);
                             }}
+                            sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                minWidth: 120,
+                                borderColor: '#0071EB',
+                                color: paymentType === 'credit' ? '#fff' : '#0071EB',
+                                backgroundColor: paymentType === 'credit' ? '#0071EB' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor:
+                                        paymentType === 'credit'
+                                            ? '#005FCC'
+                                            : 'rgba(0, 113, 235, 0.08)',
+                                    borderColor: '#005FCC',
+                                },
+                            }}
                         >
-                            <MenuItem value="credit">Crédito</MenuItem>
-                            <MenuItem value="debit">Débito</MenuItem>
-                        </Select>
-                    </FormControl>
+                            Crédito
+                        </Button>
+
+                        {/* Botão Débito */}
+                        <Button
+                            variant={paymentType === 'debit' ? 'contained' : 'outlined'}
+                            startIcon={<PaymentIcon/>}
+                            onClick={() => {
+                                setPaymentType('debit');
+                                setCardBrand('');
+                                setInstallments('');
+                                clearCustomerData();
+                                setCustomerName('');
+                                setCustomerDocument('');
+                                setCustomerEmail('');
+                                setTouchedName(false);
+                                setTouchedDocument(false);
+                                setTouchedEmail(false);
+                            }}
+                            sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                minWidth: 120,
+                                borderColor: '#0071EB',
+                                color: paymentType === 'debit' ? '#fff' : '#0071EB',
+                                backgroundColor: paymentType === 'debit' ? '#0071EB' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor:
+                                        paymentType === 'debit'
+                                            ? '#005FCC'
+                                            : 'rgba(0, 113, 235, 0.08)',
+                                    borderColor: '#005FCC',
+                                },
+                            }}
+                        >
+                            Débito
+                        </Button>
+                    </Box>
+
                 </Grid>
 
-
+                {/* Bandeira e fluxo seguinte — só aparece após selecionar crédito/débito */}
                 {showBrand && (
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid>
                         <FormControl fullWidth>
                             <InputLabel id="card-brand-label">Bandeira</InputLabel>
                             <Select
                                 labelId="card-brand-label"
                                 value={cardBrand || ''}
                                 label="Bandeira"
-                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                                sx={{borderRadius: 4, backgroundColor: '#fff', mt: 1}}
                                 onChange={(e) => {
                                     setCardBrand(e.target.value as string);
                                     setInstallments('');
@@ -241,8 +609,12 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                             >
                                 {filteredBrands.map((b) => (
                                     <MenuItem key={b.value} value={b.value}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <img src={b.images} alt={b.label} style={{ width: 24, height: 16, marginRight: 8 }} />
+                                        <Box sx={{display: 'flex', alignItems: 'center'}}>
+                                            <img
+                                                src={b.images}
+                                                alt={b.label}
+                                                style={{width: 24, height: 16, marginRight: 8}}
+                                            />
                                             {b.label}
                                         </Box>
                                     </MenuItem>
@@ -252,16 +624,16 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                     </Grid>
                 )}
 
-
+                {/* Parcelamento (abaixo da bandeira) */}
                 {showInstallments && (
-                    <Grid size={{ xs: 12, md: 5 }}>
+                    <Grid>
                         <FormControl fullWidth>
                             <InputLabel id="installments-label">Parcelamento</InputLabel>
                             <Select
                                 labelId="installments-label"
                                 value={installments}
                                 label="Parcelamento"
-                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                                sx={{borderRadius: 4, backgroundColor: '#fff', mt: 1}}
                                 onChange={(e) => {
                                     setInstallments(e.target.value as string);
                                     clearCustomerData();
@@ -278,7 +650,11 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                                     const per = amountFloat > 0 ? amountFloat / qty : 0;
                                     return (
                                         <MenuItem key={qty} value={String(qty)}>
-                                            {qty}x de {per.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            {qty}x de{' '}
+                                            {per.toLocaleString('pt-BR', {
+                                                style: 'currency',
+                                                currency: 'BRL',
+                                            })}
                                         </MenuItem>
                                     );
                                 })}
@@ -290,14 +666,14 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
 
 
             {showCustomerFields && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
                     <TextField
                         label="Nome"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         onBlur={() => setTouchedName(true)}
                         error={touchedName && (!customerName || !/^[A-Za-zÀ-ÿ\s]+$/.test(customerName))}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                        sx={{'& .MuiOutlinedInput-root': {borderRadius: 4, backgroundColor: '#FFF'}}}
                     />
                     <TextField
                         label="Documento"
@@ -310,7 +686,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                         onBlur={() => setTouchedDocument(true)}
                         error={touchedDocument && !isCpfCnpjLenValid(onlyDigits(customerDocument))}
 
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                        sx={{'& .MuiOutlinedInput-root': {borderRadius: 4, backgroundColor: '#FFF'}}}
                     />
                     <TextField
                         label="Email"
@@ -318,14 +694,14 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                         onChange={(e) => setCustomerEmail(e.target.value)}
                         onBlur={() => setTouchedEmail(true)}
                         error={touchedEmail && !regexEmail.test(customerEmail)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 4, backgroundColor: '#FFF' } }}
+                        sx={{'& .MuiOutlinedInput-root': {borderRadius: 4, backgroundColor: '#FFF'}}}
                     />
                 </Box>
             )}
 
 
             {showSubmitButton && (
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <Box sx={{display: 'flex', gap: 2, mt: 1}}>
                     <Button
                         variant="contained"
                         sx={{
@@ -366,7 +742,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                             justifyContent: 'center',
                             gap: 1,
                             py: '10px',
-                            '&:hover': { backgroundColor: '#0071EB' },
+                            '&:hover': {backgroundColor: '#0071EB'},
                         }}
                         onClick={handleSubmit}
                     >
@@ -376,9 +752,9 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
             )}
 
 
-            {posTxId && (
-                <PosStatusPoller
-                    transactionId={posTxId}
+            {pinpadTxId && (
+                <PinpadStatusPoller
+                    transactionId={pinpadTxId}
                     onStatusChange={(s) => onStatusChange?.(s)}
                     onPaymentChange={(v) => onPaymentChange?.(v)}
                     onApprovedData={(d) => {
@@ -392,7 +768,7 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                                     installments: d.installments,
                                 }
                                 : {
-                                    uuid: posTxId,
+                                    uuid: pinpadTxId,
                                     customerName: d.customerName,
                                     customerDocument: d.customerDocument,
                                     amount: d.amount.toFixed(2),
@@ -403,22 +779,21 @@ export default function Pos({autoSubmitNonce, onResultChange, onStatusChange, on
                 />
             )}
 
-
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={5000}
-                onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                onClose={() => setSnackbar((p) => ({...p, open: false}))}
+                anchorOrigin={{vertical: 'top', horizontal: 'center'}}
             >
                 <Alert
-                    onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+                    onClose={() => setSnackbar((p) => ({...p, open: false}))}
                     severity={snackbar.severity as AlertColor}
-                    sx={{ width: '100%' }}
+                    sx={{width: '100%'}}
                 >
                     <Typography variant="subtitle1" fontWeight="bold">
                         {snackbar.title}
                     </Typography>
-                    <Typography sx={{ whiteSpace: 'pre-line' }} variant="body2">
+                    <Typography sx={{whiteSpace: 'pre-line'}} variant="body2">
                         {snackbar.description}
                     </Typography>
                 </Alert>

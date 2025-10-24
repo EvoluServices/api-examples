@@ -1,9 +1,15 @@
 import React, {useEffect, useState} from 'react';
+import Grid from '@mui/material/Grid';
 import {
     Box, FormControl, InputLabel, Select, MenuItem, TextField, Button,
     Snackbar, Alert, AlertColor, Typography,
-    Grid
 } from '@mui/material';
+import { IconButton } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import PaymentIcon from '@mui/icons-material/Payment';
+
+
 import { brands } from '@/components/Brand';
 import { useTransaction } from '@/contexts/TransactionContext';
 import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
@@ -190,8 +196,8 @@ export default function Pinpad({
                 return null;
             }
 
-            // ✅ Usa o valor do Brand.tsx e normaliza conforme Cielo, Rede e Vero
-            const brandRaw = (cardBrand ?? '').toString().trim().toUpperCase();
+            // ✅ Usa o valor do Brand.tsx exatamente como está (sem normalizar)
+            const brandRaw = (cardBrand ?? '').toString().trim();
 
             if (!brandRaw) {
                 setSnackbar({
@@ -203,26 +209,43 @@ export default function Pinpad({
                 return null;
             }
 
-            // 🧩 Normalização para adquirentes (Cielo, Rede, Vero)
-            // Remove sufixos e ajusta nomes específicos
-            // ✅ Normaliza as bandeiras para formato aceito pelas adquirentes (Cielo / Rede / Vero)
-            let cleanedBrand = brandRaw.trim().toUpperCase();
+            const cleanedBrand = brandRaw; // mantém o valor original exato (ex: VISA_CREDITO)
 
-// Remove sufixos internos do Brand.tsx
-            cleanedBrand = cleanedBrand.replace('_CREDITO', '').replace('_DEBITO', '');
+            // ✅ Validação específica para split
+            // ✅ Validação específica para split (robusta p/ TS)
+            if (saleType === 'split' && Array.isArray(splits)) {
+                type SplitItem = {
+                    value?: number | string;       // formato mais comum
+                    amount?: number | string;      // caso venha como "amount"
+                    valueCents?: number;           // caso venha em centavos
+                };
 
-// Ajuste por tipo de pagamento (Crédito ou Débito)
-            if (paymentType === 'credit') {
-                // Cielo/Rede/Vero geralmente prefixam "CRED_"
-                cleanedBrand = `CRED_${cleanedBrand}`;
-            } else if (paymentType === 'debit') {
-                // Para Débito, prefixam "DEB_"
-                cleanedBrand = `DEB_${cleanedBrand}`;
+                const toNumber = (v: unknown): number => {
+                    if (typeof v === 'number') return v;
+                    if (typeof v === 'string') {
+                        const n = parseFloat(v.replace(',', '.'));
+                        return Number.isFinite(n) ? n : 0;
+                    }
+                    return 0;
+                };
+
+                const splitItems = splits as SplitItem[];
+
+                const splitTotal = splitItems.reduce<number>((sum, s) => {
+                    const val = s.value ?? s.amount ?? (typeof s.valueCents === 'number' ? s.valueCents / 100 : 0);
+                    return sum + toNumber(val);
+                }, 0);
+
+                if (Math.abs(splitTotal - parsedValue) > 0.01) {
+                    setSnackbar({
+                        open: true,
+                        severity: 'error',
+                        title: 'Valor inconsistente',
+                        description: `A soma dos splits (${splitTotal.toFixed(2)}) difere do valor total (${parsedValue.toFixed(2)}).`,
+                    });
+                    return null;
+                }
             }
-
-// Correções específicas para nomes conhecidos
-            if (cleanedBrand.includes('AMEX')) cleanedBrand = cleanedBrand.replace('AMEX', 'AMERICANEXPRESS');
-
 
             // ✅ Montagem do payload final
             const payload = {
@@ -236,7 +259,7 @@ export default function Pinpad({
                     paymentBrand: cleanedBrand,
                     callbackUrl:
                         'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
-                    ...(saleType === 'split' && { splits }), // inclui splits apenas no modo split
+                    ...(saleType === 'split' && { splits }),
                 },
             };
 
@@ -246,14 +269,13 @@ export default function Pinpad({
             console.log('💰 Valor original digitado:', amount);
             console.log('💰 Valor limpo:', cleanedValue);
             console.log('📤 Tipo final do value:', typeof parsedValue, parsedValue);
-            console.log('🧾 paymentBrand enviado:', payload.transaction.paymentBrand);
-            console.log('➡️ Enviando payload completo:', JSON.stringify(payload, null, 2));
+            console.log('🧾 paymentBrand enviado:', cleanedBrand);
+            console.log('➡️ Payload final:', JSON.stringify(payload, null, 2));
 
             const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
             return res.data;
 
         } catch (error: any) {
-            // 🔍 LOG detalhado do erro
             if (axios.isAxiosError(error)) {
                 console.error('❌ Erro na requisição Pinpad:');
                 console.error('Status:', error.response?.status);
@@ -267,6 +289,9 @@ export default function Pinpad({
             return null;
         }
     };
+
+
+
 
     useEffect(() => {
         if (!autoSubmitNonce) return;
@@ -290,6 +315,8 @@ export default function Pinpad({
         }
     }, [autoSubmitNonce]);
 
+    // @ts-ignore
+    // @ts-ignore
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
 
@@ -465,7 +492,7 @@ export default function Pinpad({
                             {/* Valor — aparece só no modo Manual */}
                             {repasseType === 'manual' && (
                                 <TextField
-                                    label="Valor (R$)"
+                                    label="(R$)"
                                     type="number"
                                     value={split.value}
                                     onChange={(e) => {
@@ -479,7 +506,7 @@ export default function Pinpad({
 
                             {/* Taxa */}
                             <FormControl sx={{ flex: 1 }}>
-                                <InputLabel id={`taxa-${index}`}>Taxa</InputLabel>
+                                <InputLabel id={`taxa-${index}`}>Dividir taxa</InputLabel>
                                 <Select
                                     labelId={`taxa-${index}`}
                                     value={split.chargeFees ? 'true' : 'false'}
@@ -491,18 +518,19 @@ export default function Pinpad({
                                     }}
                                     sx={{ borderRadius: 4 }}
                                 >
-                                    <MenuItem value="true">Fornecedor paga taxa</MenuItem>
-                                    <MenuItem value="false">Loja paga taxa</MenuItem>
+                                    <MenuItem value="true">Sim</MenuItem>
+                                    <MenuItem value="false">Não</MenuItem>
                                 </Select>
                             </FormControl>
 
-                            <Button
-                                variant="outlined"
+                            <IconButton
                                 color="error"
                                 onClick={() => setSplits(splits.filter((_, i) => i !== index))}
+                                aria-label="remover"
+                                sx={{ ml: 1 }}
                             >
-                                Remover
-                            </Button>
+                                <DeleteIcon />
+                            </IconButton>
                         </Box>
                     ))}
 
@@ -525,20 +553,24 @@ export default function Pinpad({
                 </Box>
             )}
 
-
-
-            <Grid container spacing={2}>
-
-                <Grid size={{ xs: 12, md: 3 }}>
-                    <FormControl fullWidth>
-                        <InputLabel id="payment-type-label">Modalidade</InputLabel>
-                        <Select
-                            labelId="payment-type-label"
-                            value={paymentType || ''}
-                            label="Modalidade"
-                            sx={{ borderRadius: 4, backgroundColor: '#fff' }}
-                            onChange={(e) => {
-                                setPaymentType(e.target.value as 'debit' | 'credit');
+            {/* 🔹 Container geral */}
+            <Grid container spacing={2} direction="column">
+                {/* Linha dos botões Crédito/Débito */}
+                <Grid>
+                    <Box
+                        display="flex"
+                        flexDirection="row"
+                        justifyContent="flex-start"
+                        alignItems="center"
+                        flexWrap="wrap"
+                        gap={2}
+                    >
+                        {/* Botão Crédito */}
+                        <Button
+                            variant={paymentType === 'credit' ? 'contained' : 'outlined'}
+                            startIcon={<CreditCardIcon />}
+                            onClick={() => {
+                                setPaymentType('credit');
                                 setCardBrand('');
                                 setInstallments('');
                                 clearCustomerData();
@@ -549,23 +581,73 @@ export default function Pinpad({
                                 setTouchedDocument(false);
                                 setTouchedEmail(false);
                             }}
+                            sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                minWidth: 120,
+                                borderColor: '#0071EB',
+                                color: paymentType === 'credit' ? '#fff' : '#0071EB',
+                                backgroundColor: paymentType === 'credit' ? '#0071EB' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor:
+                                        paymentType === 'credit'
+                                            ? '#005FCC'
+                                            : 'rgba(0, 113, 235, 0.08)',
+                                    borderColor: '#005FCC',
+                                },
+                            }}
                         >
-                            <MenuItem value="credit">Crédito</MenuItem>
-                            <MenuItem value="debit">Débito</MenuItem>
-                        </Select>
-                    </FormControl>
+                            Crédito
+                        </Button>
+
+                        {/* Botão Débito */}
+                        <Button
+                            variant={paymentType === 'debit' ? 'contained' : 'outlined'}
+                            startIcon={<PaymentIcon />}
+                            onClick={() => {
+                                setPaymentType('debit');
+                                setCardBrand('');
+                                setInstallments('');
+                                clearCustomerData();
+                                setCustomerName('');
+                                setCustomerDocument('');
+                                setCustomerEmail('');
+                                setTouchedName(false);
+                                setTouchedDocument(false);
+                                setTouchedEmail(false);
+                            }}
+                            sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                minWidth: 120,
+                                borderColor: '#0071EB',
+                                color: paymentType === 'debit' ? '#fff' : '#0071EB',
+                                backgroundColor: paymentType === 'debit' ? '#0071EB' : 'transparent',
+                                '&:hover': {
+                                    backgroundColor:
+                                        paymentType === 'debit'
+                                            ? '#005FCC'
+                                            : 'rgba(0, 113, 235, 0.08)',
+                                    borderColor: '#005FCC',
+                                },
+                            }}
+                        >
+                            Débito
+                        </Button>
+                    </Box>
+
                 </Grid>
 
-                {/* Bandeira (mostra se houver modalidade) */}
+                {/* Bandeira e fluxo seguinte — só aparece após selecionar crédito/débito */}
                 {showBrand && (
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid>
                         <FormControl fullWidth>
                             <InputLabel id="card-brand-label">Bandeira</InputLabel>
                             <Select
                                 labelId="card-brand-label"
                                 value={cardBrand || ''}
                                 label="Bandeira"
-                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                                sx={{ borderRadius: 4, backgroundColor: '#fff', mt: 1 }}
                                 onChange={(e) => {
                                     setCardBrand(e.target.value as string);
                                     setInstallments('');
@@ -581,7 +663,11 @@ export default function Pinpad({
                                 {filteredBrands.map((b) => (
                                     <MenuItem key={b.value} value={b.value}>
                                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <img src={b.images} alt={b.label} style={{ width: 24, height: 16, marginRight: 8 }} />
+                                            <img
+                                                src={b.images}
+                                                alt={b.label}
+                                                style={{ width: 24, height: 16, marginRight: 8 }}
+                                            />
                                             {b.label}
                                         </Box>
                                     </MenuItem>
@@ -591,16 +677,16 @@ export default function Pinpad({
                     </Grid>
                 )}
 
-
+                {/* Parcelamento (abaixo da bandeira) */}
                 {showInstallments && (
-                    <Grid size={{ xs: 12, md: 5 }}>
+                    <Grid>
                         <FormControl fullWidth>
                             <InputLabel id="installments-label">Parcelamento</InputLabel>
                             <Select
                                 labelId="installments-label"
                                 value={installments}
                                 label="Parcelamento"
-                                sx={{ borderRadius: 4, backgroundColor: '#fff' }}
+                                sx={{ borderRadius: 4, backgroundColor: '#fff', mt: 1 }}
                                 onChange={(e) => {
                                     setInstallments(e.target.value as string);
                                     clearCustomerData();
@@ -617,7 +703,11 @@ export default function Pinpad({
                                     const per = amountFloat > 0 ? amountFloat / qty : 0;
                                     return (
                                         <MenuItem key={qty} value={String(qty)}>
-                                            {qty}x de {per.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            {qty}x de{' '}
+                                            {per.toLocaleString('pt-BR', {
+                                                style: 'currency',
+                                                currency: 'BRL',
+                                            })}
                                         </MenuItem>
                                     );
                                 })}
@@ -626,7 +716,6 @@ export default function Pinpad({
                     </Grid>
                 )}
             </Grid>
-
 
             {showCustomerFields && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
