@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import {IconButton} from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 import {brands} from '@/components/Brand';
 import {useTransaction} from '@/contexts/TransactionContext';
@@ -105,6 +106,8 @@ export default function Pos({
     // Lista simulada de fornecedores (pode vir de API futuramente)
     // Lista de fornecedores reais vindos da API
     const [fornecedores, setFornecedores] = useState<{ code: string; name: string }[]>([]);
+    const addSplit = () =>
+        setSplits((prev) => [...prev, { code: '', value: '', chargeFees: false }]);
 
     useEffect(() => {
         const fetchSuppliers = async () => {
@@ -383,10 +386,15 @@ export default function Pos({
 
             {/* Tipo de repasse — aparece apenas no modo Split */}
             {saleType === 'split' && (
-                <Box sx={{display: 'flex', gap: 2}}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
                     {/* Botão Manual */}
                     <Button
-                        onClick={() => setRepasseType('manual')}
+                        onClick={() => {
+                            setRepasseType('manual');
+                            if (splits.length === 0) {
+                                addSplit(); // adiciona automaticamente o primeiro container
+                            }
+                        }}
                         sx={{
                             flex: 1,
                             minHeight: 60,
@@ -400,7 +408,7 @@ export default function Pos({
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 1,
-                            '&:hover': {backgroundColor: '#f7faff'},
+                            '&:hover': { backgroundColor: '#f7faff' },
                         }}
                     >
                         <Box
@@ -417,7 +425,12 @@ export default function Pos({
 
                     {/* Botão Automático */}
                     <Button
-                        onClick={() => setRepasseType('automatico')}
+                        onClick={() => {
+                            setRepasseType('automatico');
+                            if (splits.length === 0) {
+                                addSplit(); // adiciona automaticamente o primeiro container
+                            }
+                        }}
                         sx={{
                             flex: 1,
                             minHeight: 60,
@@ -431,7 +444,7 @@ export default function Pos({
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 1,
-                            '&:hover': {backgroundColor: '#f7faff'},
+                            '&:hover': { backgroundColor: '#f7faff' },
                         }}
                     >
                         <Box
@@ -465,8 +478,8 @@ export default function Pos({
                                 backgroundColor: '#fff',
                             }}
                         >
-                            {/* Select de fornecedor */}
-                            <FormControl sx={{flex: 1}}>
+                            {/* Fornecedor */}
+                            <FormControl sx={{ flex: 1 }}>
                                 <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
                                 <Select
                                     labelId={`fornecedor-${index}`}
@@ -474,10 +487,10 @@ export default function Pos({
                                     label="Fornecedor"
                                     onChange={(e) => {
                                         const updated = [...splits];
-                                        updated[index].code = e.target.value;
+                                        updated[index].code = e.target.value as string;
                                         setSplits(updated);
                                     }}
-                                    sx={{borderRadius: 4}}
+                                    sx={{ borderRadius: 4 }}
                                 >
                                     {fornecedores.map((f) => (
                                         <MenuItem key={f.code} value={f.code}>
@@ -487,7 +500,7 @@ export default function Pos({
                                 </Select>
                             </FormControl>
 
-                            {/* Valor — aparece só no modo Manual */}
+                            {/* Valor — só no manual */}
                             {repasseType === 'manual' && (
                                 <TextField
                                     label="(R$)"
@@ -498,12 +511,12 @@ export default function Pos({
                                         updated[index].value = e.target.value;
                                         setSplits(updated);
                                     }}
-                                    sx={{flex: 0.6}}
+                                    sx={{ flex: 0.6 }}
                                 />
                             )}
 
                             {/* Taxa */}
-                            <FormControl sx={{flex: 0.5}}>
+                            <FormControl sx={{ flex: 0.5 }}>
                                 <InputLabel id={`taxa-${index}`}>Dividir taxa</InputLabel>
                                 <Select
                                     labelId={`taxa-${index}`}
@@ -514,40 +527,40 @@ export default function Pos({
                                         updated[index].chargeFees = e.target.value === 'true';
                                         setSplits(updated);
                                     }}
-                                    sx={{borderRadius: 4}}
+                                    sx={{ borderRadius: 4 }}
                                 >
                                     <MenuItem value="true">Sim</MenuItem>
                                     <MenuItem value="false">Não</MenuItem>
                                 </Select>
                             </FormControl>
 
+                            {/* + só na última linha */}
+                            {index === splits.length - 1 && (
+                                <IconButton
+                                    onClick={addSplit}
+                                    aria-label="adicionar"
+                                    sx={{
+                                        backgroundColor: '#0071EB',
+                                        color: '#fff',
+                                        '&:hover': { backgroundColor: '#005bb5' },
+                                    }}
+                                >
+                                    <AddCircleOutlineIcon />
+                                </IconButton>
+                            )}
+
+                            {/* Remover */}
                             <IconButton
                                 color="error"
                                 onClick={() => setSplits(splits.filter((_, i) => i !== index))}
                                 aria-label="remover"
+                                sx={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
                             >
-                                <DeleteIcon/>
+                                <DeleteIcon />
                             </IconButton>
-
                         </Box>
                     ))}
 
-                    {/* Botão adicionar fornecedor */}
-                    <Button
-                        variant="contained"
-                        onClick={() =>
-                            setSplits([...splits, {code: '', value: '', chargeFees: false}])
-                        }
-                        sx={{
-                            alignSelf: 'flex-start',
-                            borderRadius: 4,
-                            backgroundColor: '#0071EB',
-                            fontWeight: 600,
-                            '&:hover': {backgroundColor: '#005bb5'},
-                        }}
-                    >
-                        + Adicionar fornecedor
-                    </Button>
                 </Box>
             )}
 

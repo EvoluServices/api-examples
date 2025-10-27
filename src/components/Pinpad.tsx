@@ -8,7 +8,7 @@ import { IconButton } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PaymentIcon from '@mui/icons-material/Payment';
-
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 import { brands } from '@/components/Brand';
 import { useTransaction } from '@/contexts/TransactionContext';
@@ -452,7 +452,12 @@ export default function Pinpad({
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     {/* Botão Manual */}
                     <Button
-                        onClick={() => setRepasseType('manual')}
+                        onClick={() => {
+                            setRepasseType('manual');
+                            if (splits.length === 0) {
+                                setSplits([{ code: '', value: '', chargeFees: false }]); // adiciona o container automaticamente
+                            }
+                        }}
                         sx={{
                             flex: 1,
                             minHeight: 60,
@@ -483,7 +488,12 @@ export default function Pinpad({
 
                     {/* Botão Automático */}
                     <Button
-                        onClick={() => setRepasseType('automatico')}
+                        onClick={() => {
+                            setRepasseType('automatico');
+                            if (splits.length === 0) {
+                                setSplits([{ code: '', value: '', chargeFees: false }]); // adiciona o container automaticamente
+                            }
+                        }}
                         sx={{
                             flex: 1,
                             minHeight: 60,
@@ -515,7 +525,7 @@ export default function Pinpad({
                 </Box>
             )}
 
-
+            {/* Containers de fornecedores (com botão + dentro do último) */}
             {saleType === 'split' && repasseType && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
                     {splits.map((split, index) => (
@@ -531,7 +541,7 @@ export default function Pinpad({
                                 backgroundColor: '#fff',
                             }}
                         >
-                            {/* Select de fornecedor */}
+                            {/* Fornecedor */}
                             <FormControl sx={{ flex: 2 }}>
                                 <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
                                 <Select
@@ -553,7 +563,7 @@ export default function Pinpad({
                                 </Select>
                             </FormControl>
 
-                            {/* Valor — aparece só no modo Manual */}
+                            {/* Valor — só no manual */}
                             {repasseType === 'manual' && (
                                 <TextField
                                     label="(R$)"
@@ -587,6 +597,24 @@ export default function Pinpad({
                                 </Select>
                             </FormControl>
 
+                            {/* ➕ botão + no mesmo container (só no último) */}
+                            {index === splits.length - 1 && (
+                                <IconButton
+                                    onClick={() =>
+                                        setSplits([...splits, { code: '', value: '', chargeFees: false }])
+                                    }
+                                    aria-label="adicionar"
+                                    sx={{
+                                        backgroundColor: '#0071EB',
+                                        color: '#fff',
+                                        '&:hover': { backgroundColor: '#005bb5' },
+                                    }}
+                                >
+                                    <AddCircleOutlineIcon />
+                                </IconButton>
+                            )}
+
+                            {/* 🗑️ botão remover */}
                             <IconButton
                                 color="error"
                                 onClick={() => setSplits(splits.filter((_, i) => i !== index))}
@@ -597,25 +625,9 @@ export default function Pinpad({
                             </IconButton>
                         </Box>
                     ))}
-
-                    {/* Botão adicionar fornecedor */}
-                    <Button
-                        variant="contained"
-                        onClick={() =>
-                            setSplits([...splits, { code: '', value: '', chargeFees: false }])
-                        }
-                        sx={{
-                            alignSelf: 'flex-start',
-                            borderRadius: 4,
-                            backgroundColor: '#0071EB',
-                            fontWeight: 600,
-                            '&:hover': { backgroundColor: '#005bb5' },
-                        }}
-                    >
-                        + Adicionar fornecedor
-                    </Button>
                 </Box>
             )}
+
 
             {/* 🔹 Container geral */}
             <Grid container spacing={2} direction="column">
