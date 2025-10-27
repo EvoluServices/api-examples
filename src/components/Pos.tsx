@@ -103,11 +103,60 @@ export default function Pos({
     >([]);
 
     // Lista simulada de fornecedores (pode vir de API futuramente)
-    const fornecedores = [
-        {code: '9YTDOO', name: 'Fornecedor 1'},
-        {code: '0I52ZJ', name: 'Fornecedor 2'},
-        {code: 'AB12CD', name: 'Fornecedor 3'},
-    ];
+    // Lista de fornecedores reais vindos da API
+    const [fornecedores, setFornecedores] = useState<{ code: string; name: string }[]>([]);
+
+    useEffect(() => {
+        const fetchSuppliers = async () => {
+            try {
+                console.log('🚀 Buscando fornecedores para POS...');
+                const token = await fetchBearerToken();
+
+                if (!token) {
+                    console.error('❌ Nenhum token retornado.');
+                    return;
+                }
+
+                const meResp = await axios.get('/api/session/me');
+                const merchantKey = meResp?.data?.merchantKey;
+                if (!merchantKey) {
+                    console.error('❌ MerchantKey ausente na sessão.');
+                    return;
+                }
+
+                // ✅ Ajuste: rota POS em vez de PINPAD
+                const url = `/api/proxy/pos/remote/merchants/${merchantKey}/recipients`;
+                console.log('🔗 Fazendo requisição para:', url);
+
+                const res = await axios.get(url, {
+                    headers: { bearer: token },
+                    params: { t: Date.now() }, // evita cache
+                });
+
+                console.log('📦 Resposta fornecedores POS:', res.data);
+
+                if (Array.isArray(res.data) && res.data.length) {
+                    const mapped = res.data.map((r: any) => ({
+                        code: r.code,
+                        name: r.name,
+                    }));
+                    console.log('✅ Fornecedores mapeados POS:', mapped);
+                    setFornecedores(mapped);
+                } else {
+                    console.warn('⚠️ Nenhum fornecedor encontrado ou formato inesperado:', res.data);
+                    setFornecedores([]);
+                }
+            } catch (err: any) {
+                console.error('❌ Erro ao buscar fornecedores POS:', err.response?.data || err);
+                setFornecedores([]);
+            }
+        };
+
+        if (saleType === 'split') {
+            fetchSuppliers();
+        }
+    }, [saleType]);
+
 
     // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
