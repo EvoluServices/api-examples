@@ -28,12 +28,6 @@ export const brands: Brand[] = [
         type: 'credit',
     },
     {
-        label: 'Aura',
-        value: 'AURA',
-        images: '/brands/aura.png',
-        type: 'credit',
-    },
-    {
         label: 'Sorocred',
         value: 'SOROCRED',
         images: '/brands/sorocred.png',

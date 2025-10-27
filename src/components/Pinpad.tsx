@@ -92,12 +92,65 @@ export default function Pinpad({
         { code: string; value: string; chargeFees: boolean }[]
     >([]);
 
-    // Lista simulada de fornecedores (pode vir de API futuramente)
-    const fornecedores = [
-        { code: '9YTDOO', name: 'Fornecedor 1' },
-        { code: '0I52ZJ', name: 'Fornecedor 2' },
-        { code: 'AB12CD', name: 'Fornecedor 3' },
-    ];
+    // Lista de fornecedores reais vindos da API
+    const [fornecedores, setFornecedores] = useState<{ code: string; name: string }[]>([]);
+
+    useEffect(() => {
+        const fetchSuppliers = async () => {
+            try {
+                console.log('🚀 Iniciando busca de fornecedores...');
+                const token = await fetchBearerToken();
+
+                if (!token) {
+                    console.error('❌ Nenhum token retornado.');
+                    return;
+                }
+
+                const meResp = await axios.get('/api/session/me');
+                const merchantKey = meResp?.data?.merchantKey;
+                if (!merchantKey) {
+                    console.error('❌ MerchantKey ausente na sessão.');
+                    return;
+                }
+
+                // Chamada real da API
+                const url = `/api/proxy/pinpad/remote/merchants/${merchantKey}/recipients`;
+                console.log('🔗 Fazendo requisição para:', url);
+
+                const res = await axios.get(url, {
+                    headers: { bearer: token },
+                    params: { t: Date.now() }, // evita cache
+                });
+
+                // 🔍 Logs detalhados
+                console.log('📦 Resposta bruta:', res);
+                console.log('📦 Resposta data:', res.data);
+                console.log('🧩 Estrutura recebida:', JSON.stringify(res.data, null, 2));
+
+                // Mapeamento de retorno
+                if (Array.isArray(res.data) && res.data.length) {
+                    const mapped = res.data.map((r: any) => ({
+                        code: r.code,
+                        name: r.name,
+                    }));
+                    console.log('✅ Fornecedores mapeados:', mapped);
+                    setFornecedores(mapped);
+                } else {
+                    console.warn('⚠️ Nenhum fornecedor encontrado ou formato inesperado:', res.data);
+                    setFornecedores([]);
+                }
+
+            } catch (err: any) {
+                console.error('❌ Erro ao buscar fornecedores:', err.response?.data || err);
+                setFornecedores([]);
+            }
+        };
+
+        if (saleType === 'split') {
+            fetchSuppliers();
+        }
+    }, [saleType]);
+
 
     // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
@@ -251,7 +304,7 @@ export default function Pinpad({
             const payload = {
                 transaction: {
                     merchantId: merchantKey,
-                    value: parsedValue.toFixed(2), // formato "100.00"
+                    value: parsedValue.toFixed(2),
                     installments: parseInt(installments || '1', 10),
                     clientName: (customerName || '').trim(),
                     clientDocument: (customerDocument || '').trim(),
@@ -259,9 +312,20 @@ export default function Pinpad({
                     paymentBrand: cleanedBrand,
                     callbackUrl:
                         'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
-                    ...(saleType === 'split' && { splits }),
+                    ...(saleType === 'split' && {
+                        splits: splits.map((s) => ({
+                            recipientCode: s.code,
+                            amount: typeof s.value === 'string'
+                                ? parseFloat(s.value.replace(',', '.')).toFixed(2)
+                                : (s.value as number).toFixed(2),
+                            chargeFees: s.chargeFees,
+                        })),
+                        // Se for relevante enviar o tipo de repasse:
+                        repasseType: repasseType,   // exemplo: 'manual' ou 'automatico'
+                    }),
                 },
             };
+
 
             const headers = { bearer: token, 'Content-Type': 'application/json' };
 
