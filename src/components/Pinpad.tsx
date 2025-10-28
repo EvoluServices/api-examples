@@ -1,23 +1,29 @@
 import React, {useEffect, useState} from 'react';
 import Grid from '@mui/material/Grid';
 import {
-    Box, FormControl, InputLabel, Select, MenuItem, TextField, Button,
-    Snackbar, Alert, AlertColor, Typography,
+    Alert,
+    AlertColor,
+    Box,
+    Button,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    Snackbar,
+    TextField,
+    Typography,
 } from '@mui/material';
-import { IconButton } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PaymentIcon from '@mui/icons-material/Payment';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-
-import { brands } from '@/components/Brand';
-import { useTransaction } from '@/contexts/TransactionContext';
-import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
-import { parseApiError } from '@/utils/httpErrors';
-import { regexEmail } from '@/utils/regex';
+import {brands} from '@/components/Brand';
+import {useTransaction} from '@/contexts/TransactionContext';
+import {isCpfCnpjLenValid, maskCpfCnpj, onlyDigits} from '@/utils/document';
+import {parseApiError} from '@/utils/httpErrors';
+import {regexEmail} from '@/utils/regex';
 import axios from 'axios';
+import Beneficiaries from '@/components/split/Beneficiaries';
 import PinpadStatusPoller from '@/components/pinpad/PinpadStatusPoller';
-import type { TxResult } from '@/types/transactions';
+import type {TxResult} from '@/types/transactions';
 
 type PinpadProps = {
     autoSubmitNonce?: number;
@@ -26,7 +32,6 @@ type PinpadProps = {
     onStatusChange?: (s: 'PENDING' | 'APPROVED' | 'DISAPPROVED' | 'ABORTED' | 'PROCESSING' | 'ERROR') => void;
     onPaymentChange?: (v: number) => void;
 };
-
 
 export default function Pinpad({
                                    autoSubmitNonce,
@@ -52,26 +57,18 @@ export default function Pinpad({
     } = useTransaction();
 
     const amountFloat = parseFloat(amount || '0');
-
     const showBrand = paymentType === 'credit' || paymentType === 'debit';
     const showInstallments = paymentType === 'credit' && !!cardBrand;
     const showCustomerFields =
         (paymentType === 'debit' && !!cardBrand) ||
         (paymentType === 'credit' && !!installments);
     const showSubmitButton = showCustomerFields;
-
     const filteredBrands = brands.filter((b) => b.type === paymentType);
-
     const [touchedName, setTouchedName] = useState(false);
     const [touchedDocument, setTouchedDocument] = useState(false);
     const [touchedEmail, setTouchedEmail] = useState(false);
-
     const [pinpadTxId, setPinpadTxId] = useState<string | null>(null);
-
-    // Tipo de repasse dentro do split: manual ou automático
-    const [repasseType, setRepasseType] = useState<'manual' | 'automatico' | null>(null);
-
-
+    const [splitsOk, setSplitsOk] = useState(true);
 
     const [snackbar, setSnackbar] = useState({
         open: false,
@@ -80,80 +77,25 @@ export default function Pinpad({
         description: '',
     });
 
-    // ------------------------------------------------------
-    // 🧩 Parte 1 - Estados de controle do fluxo de venda
-    // ------------------------------------------------------
+    const [saleType, setSaleType] = useState<'convencional'
+        | 'split' | null>(null);
 
-    // Tipo de venda: 'convencional', 'split' ou nenhum selecionado ainda
-    const [saleType, setSaleType] = useState<'convencional' | 'split' | null>(null);
-
-    // Lista de fornecedores e regras de split
     const [splits, setSplits] = useState<
         { code: string; value: string; chargeFees: boolean }[]
     >([]);
 
-    // Lista de fornecedores reais vindos da API
-    const [fornecedores, setFornecedores] = useState<{ code: string; name: string }[]>([]);
-
-    useEffect(() => {
-        const fetchSuppliers = async () => {
-            try {
-                console.log('🚀 Iniciando busca de fornecedores...');
-                const token = await fetchBearerToken();
-
-                if (!token) {
-                    console.error('❌ Nenhum token retornado.');
-                    return;
-                }
-
-                const meResp = await axios.get('/api/session/me');
-                const merchantKey = meResp?.data?.merchantKey;
-                if (!merchantKey) {
-                    console.error('❌ MerchantKey ausente na sessão.');
-                    return;
-                }
-
-                // Chamada real da API
-                const url = `/api/proxy/pinpad/remote/merchants/${merchantKey}/recipients`;
-                console.log('🔗 Fazendo requisição para:', url);
-
-                const res = await axios.get(url, {
-                    headers: { bearer: token },
-                    params: { t: Date.now() }, // evita cache
-                });
-
-                // 🔍 Logs detalhados
-                console.log('📦 Resposta bruta:', res);
-                console.log('📦 Resposta data:', res.data);
-                console.log('🧩 Estrutura recebida:', JSON.stringify(res.data, null, 2));
-
-                // Mapeamento de retorno
-                if (Array.isArray(res.data) && res.data.length) {
-                    const mapped = res.data.map((r: any) => ({
-                        code: r.code,
-                        name: r.name,
-                    }));
-                    console.log('✅ Fornecedores mapeados:', mapped);
-                    setFornecedores(mapped);
-                } else {
-                    console.warn('⚠️ Nenhum fornecedor encontrado ou formato inesperado:', res.data);
-                    setFornecedores([]);
-                }
-
-            } catch (err: any) {
-                console.error('❌ Erro ao buscar fornecedores:', err.response?.data || err);
-                setFornecedores([]);
-            }
-        };
-
-        if (saleType === 'split') {
-            fetchSuppliers();
-        }
-    }, [saleType]);
-
-
-    // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
+
+        // Impede finalizar quando soma dos splits excede o valor da venda
+        if (saleType === 'split' && !splitsOk) {
+            setSnackbar({
+                open: true,
+                severity: 'error',
+                title: 'Valor de split inválido',
+                description: 'A soma dos splits não pode exceder o valor da venda.',
+            });
+            return;
+        }
 
         const docDigits = onlyDigits(customerDocument);
         const validName = customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName);
@@ -172,7 +114,6 @@ export default function Pinpad({
             });
             return;
         }
-
 
         const token = await fetchBearerToken();
         if (!token) {
@@ -230,11 +171,10 @@ export default function Pinpad({
                 throw new Error('Chave de Integração do Estabelecimento ausente na sessão.');
             }
 
-            // ✅ Corrige e valida o valor enviado
             const cleanedValue = String(amount)
-                .replace(/\s/g, '')       // remove espaços
-                .replace(',', '.')        // substitui vírgula por ponto
-                .replace(/[^\d.]/g, '');  // remove qualquer caractere que não seja número ou ponto
+                .replace(/\s/g, '')
+                .replace(',', '.')
+                .replace(/[^\d.]/g, '');
 
             const parsedValue = parseFloat(cleanedValue);
 
@@ -249,7 +189,6 @@ export default function Pinpad({
                 return null;
             }
 
-            // ✅ Usa o valor do Brand.tsx exatamente como está (sem normalizar)
             const brandRaw = (cardBrand ?? '').toString().trim();
 
             if (!brandRaw) {
@@ -262,45 +201,6 @@ export default function Pinpad({
                 return null;
             }
 
-            const cleanedBrand = brandRaw; // mantém o valor original exato (ex: VISA_CREDITO)
-
-            // ✅ Validação específica para split
-            // ✅ Validação específica para split (robusta p/ TS)
-            if (saleType === 'split' && Array.isArray(splits)) {
-                type SplitItem = {
-                    value?: number | string;       // formato mais comum
-                    amount?: number | string;      // caso venha como "amount"
-                    valueCents?: number;           // caso venha em centavos
-                };
-
-                const toNumber = (v: unknown): number => {
-                    if (typeof v === 'number') return v;
-                    if (typeof v === 'string') {
-                        const n = parseFloat(v.replace(',', '.'));
-                        return Number.isFinite(n) ? n : 0;
-                    }
-                    return 0;
-                };
-
-                const splitItems = splits as SplitItem[];
-
-                const splitTotal = splitItems.reduce<number>((sum, s) => {
-                    const val = s.value ?? s.amount ?? (typeof s.valueCents === 'number' ? s.valueCents / 100 : 0);
-                    return sum + toNumber(val);
-                }, 0);
-
-                if (Math.abs(splitTotal - parsedValue) > 0.01) {
-                    setSnackbar({
-                        open: true,
-                        severity: 'error',
-                        title: 'Valor inconsistente',
-                        description: `A soma dos splits (${splitTotal.toFixed(2)}) difere do valor total (${parsedValue.toFixed(2)}).`,
-                    });
-                    return null;
-                }
-            }
-
-            // ✅ Montagem do payload final
             const payload = {
                 transaction: {
                     merchantId: merchantKey,
@@ -309,33 +209,20 @@ export default function Pinpad({
                     clientName: (customerName || '').trim(),
                     clientDocument: (customerDocument || '').trim(),
                     clientEmail: (customerEmail || '').trim(),
-                    paymentBrand: cleanedBrand,
+                    paymentBrand: brandRaw,
                     callbackUrl:
                         'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
                     ...(saleType === 'split' && {
-                        splits: splits.map((s) => ({
-                            recipientCode: s.code,
-                            amount: typeof s.value === 'string'
-                                ? parseFloat(s.value.replace(',', '.')).toFixed(2)
-                                : (s.value as number).toFixed(2),
-                            chargeFees: s.chargeFees,
-                        })),
-                        // Se for relevante enviar o tipo de repasse:
-                        repasseType: repasseType,   // exemplo: 'manual' ou 'automatico'
+                      splits: splits.map((s) => ({
+                        code: s.code,
+                        value: s.value,
+                        chargeFees: s.chargeFees,
+                      })),
                     }),
                 },
             };
 
-
             const headers = { bearer: token, 'Content-Type': 'application/json' };
-
-            // 🧭 LOGS DE DEPURAÇÃO
-            console.log('💰 Valor original digitado:', amount);
-            console.log('💰 Valor limpo:', cleanedValue);
-            console.log('📤 Tipo final do value:', typeof parsedValue, parsedValue);
-            console.log('🧾 paymentBrand enviado:', cleanedBrand);
-            console.log('➡️ Payload final:', JSON.stringify(payload, null, 2));
-
             const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
             return res.data;
 
@@ -348,14 +235,22 @@ export default function Pinpad({
                 console.error('❌ Erro inesperado:', error);
             }
 
+            try {
+              if (axios.isAxiosError(error)) {
+                console.error('🧯 [Pinpad POST] Axios error config:', JSON.stringify({
+                  url: error.config?.url,
+                  method: error.config?.method,
+                  headers: error.config?.headers,
+                  data: error.config?.data,
+                }, null, 2));
+              }
+            } catch {}
+
             const { title, description } = parseApiError(error);
             setSnackbar({ open: true, severity: 'error', title, description });
             return null;
         }
     };
-
-
-
 
     useEffect(() => {
         if (!autoSubmitNonce) return;
@@ -379,18 +274,16 @@ export default function Pinpad({
         }
     }, [autoSubmitNonce]);
 
-    // @ts-ignore
-    // @ts-ignore
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
 
-            {/* 🧭 Botões de tipo de venda (Convencional / Split) */}
+            {/* 🧭 Botões de tipo de venda (Convencional / split) */}
             <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
                     variant={saleType === 'convencional' ? 'contained' : 'outlined'}
                     onClick={() => {
                         setSaleType('convencional');
-                        setSplits([]); // limpa fornecedores se trocar de tipo
+                        setSplits([]);
                         setPaymentType('' as any);
                         setCardBrand('');
                         setInstallments('');
@@ -420,7 +313,7 @@ export default function Pinpad({
                     variant={saleType === 'split' ? 'contained' : 'outlined'}
                     onClick={() => {
                         setSaleType('split');
-                        setSplits([]);
+                        setSplits([{ code: '', value: '', chargeFees: false }]);
                         setPaymentType('' as any);
                         setCardBrand('');
                         setInstallments('');
@@ -447,189 +340,18 @@ export default function Pinpad({
                 </Button>
             </Box>
 
-            {/* Tipo de repasse — aparece apenas no modo Split */}
+            {/* Containers de fornecedores */}
             {saleType === 'split' && (
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    {/* Botão Manual */}
-                    <Button
-                        onClick={() => {
-                            setRepasseType('manual');
-                            if (splits.length === 0) {
-                                setSplits([{ code: '', value: '', chargeFees: false }]); // adiciona o container automaticamente
-                            }
-                        }}
-                        sx={{
-                            flex: 1,
-                            minHeight: 60,
-                            borderRadius: 4,
-                            border: '2px solid #0071EB',
-                            backgroundColor: '#fff',
-                            color: '#0071EB',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            '&:hover': { backgroundColor: '#f7faff' },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                border: '2px solid #0071EB',
-                                backgroundColor: repasseType === 'manual' ? '#0071EB' : 'transparent',
-                            }}
-                        />
-                        MANUAL
-                    </Button>
-
-                    {/* Botão Automático */}
-                    <Button
-                        onClick={() => {
-                            setRepasseType('automatico');
-                            if (splits.length === 0) {
-                                setSplits([{ code: '', value: '', chargeFees: false }]); // adiciona o container automaticamente
-                            }
-                        }}
-                        sx={{
-                            flex: 1,
-                            minHeight: 60,
-                            borderRadius: 4,
-                            border: '2px solid #0071EB',
-                            backgroundColor: '#fff',
-                            color: '#0071EB',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            '&:hover': { backgroundColor: '#f7faff' },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                border: '2px solid #0071EB',
-                                backgroundColor:
-                                    repasseType === 'automatico' ? '#0071EB' : 'transparent',
-                            }}
-                        />
-                        AUTOMÁTICO
-                    </Button>
-                </Box>
+                <Beneficiaries
+                    visible={saleType === 'split'}
+                    value={splits}
+                    onChange={setSplits}
+                    saleAmount={amountFloat}
+                    onValidityChange={setSplitsOk}
+                />
             )}
 
-            {/* Containers de fornecedores (com botão + dentro do último) */}
-            {saleType === 'split' && repasseType && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                    {splits.map((split, index) => (
-                        <Box
-                            key={index}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 2,
-                                p: 2,
-                                border: '1px solid #ccc',
-                                borderRadius: 4,
-                                backgroundColor: '#fff',
-                            }}
-                        >
-                            {/* Fornecedor */}
-                            <FormControl sx={{ flex: 2 }}>
-                                <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
-                                <Select
-                                    labelId={`fornecedor-${index}`}
-                                    value={split.code}
-                                    label="Fornecedor"
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].code = e.target.value;
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ borderRadius: 4 }}
-                                >
-                                    {fornecedores.map((f) => (
-                                        <MenuItem key={f.code} value={f.code}>
-                                            {f.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-
-                            {/* Valor — só no manual */}
-                            {repasseType === 'manual' && (
-                                <TextField
-                                    label="(R$)"
-                                    type="number"
-                                    value={split.value}
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].value = e.target.value;
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ flex: 1 }}
-                                />
-                            )}
-
-                            {/* Taxa */}
-                            <FormControl sx={{ flex: 1 }}>
-                                <InputLabel id={`taxa-${index}`}>Dividir taxa</InputLabel>
-                                <Select
-                                    labelId={`taxa-${index}`}
-                                    value={split.chargeFees ? 'true' : 'false'}
-                                    label="Taxa"
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].chargeFees = e.target.value === 'true';
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ borderRadius: 4 }}
-                                >
-                                    <MenuItem value="true">Sim</MenuItem>
-                                    <MenuItem value="false">Não</MenuItem>
-                                </Select>
-                            </FormControl>
-
-                            {/* ➕ botão + no mesmo container (só no último) */}
-                            {index === splits.length - 1 && (
-                                <IconButton
-                                    onClick={() =>
-                                        setSplits([...splits, { code: '', value: '', chargeFees: false }])
-                                    }
-                                    aria-label="adicionar"
-                                    sx={{
-                                        backgroundColor: '#0071EB',
-                                        color: '#fff',
-                                        '&:hover': { backgroundColor: '#005bb5' },
-                                    }}
-                                >
-                                    <AddCircleOutlineIcon />
-                                </IconButton>
-                            )}
-
-                            {/* 🗑️ botão remover */}
-                            <IconButton
-                                color="error"
-                                onClick={() => setSplits(splits.filter((_, i) => i !== index))}
-                                aria-label="remover"
-                                sx={{ ml: 1 }}
-                            >
-                                <DeleteIcon />
-                            </IconButton>
-                        </Box>
-                    ))}
-                </Box>
-            )}
-
-
-            {/* 🔹 Container geral */}
+            {/* Container geral */}
             <Grid container spacing={2} direction="column">
                 {/* Linha dos botões Crédito/Débito */}
                 <Grid>
@@ -829,56 +551,58 @@ export default function Pinpad({
 
 
             {showSubmitButton && (
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                    <Button
-                        variant="contained"
-                        sx={{
-                            borderRadius: '16px',
-                            textTransform: 'uppercase',
-                            fontWeight: 'bold',
-                            backgroundColor: '#FFF',
-                            color: '#0071EB',
-                            minWidth: 120,
-                            minHeight: 60,
-                            boxShadow: 'none',
-                            border: '1px solid #ccc',
-                        }}
-                        onClick={() => {
-                            setCustomerName('');
-                            setCustomerDocument('');
-                            setCustomerEmail('');
-                            setTouchedName(false);
-                            setTouchedDocument(false);
-                            setTouchedEmail(false);
-                        }}
-                    >
-                        Limpar
-                    </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            sx={{
+                                borderRadius: '16px',
+                                textTransform: 'uppercase',
+                                fontWeight: 'bold',
+                                backgroundColor: '#FFF',
+                                color: '#0071EB',
+                                minWidth: 120,
+                                minHeight: 60,
+                                boxShadow: 'none',
+                                border: '1px solid #ccc',
+                            }}
+                            onClick={() => {
+                                setCustomerName('');
+                                setCustomerDocument('');
+                                setCustomerEmail('');
+                                setTouchedName(false);
+                                setTouchedDocument(false);
+                                setTouchedEmail(false);
+                            }}
+                        >
+                            Limpar
+                        </Button>
 
-                    <Button
-                        variant="contained"
-                        sx={{
-                            flex: 1,
-                            backgroundColor: '#0071EB',
-                            color: '#FFF',
-                            fontWeight: 700,
-                            fontSize: '16px',
-                            textTransform: 'none',
-                            borderRadius: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            py: '10px',
-                            '&:hover': { backgroundColor: '#0071EB' },
-                        }}
-                        onClick={handleSubmit}
-                    >
-                        Finalizar
-                    </Button>
+                        <Button
+                            variant="contained"
+                            disabled={saleType === 'split' && !splitsOk}
+                            sx={{
+                                flex: 1,
+                                backgroundColor: '#0071EB',
+                                color: '#FFF',
+                                fontWeight: 700,
+                                fontSize: '16px',
+                                textTransform: 'none',
+                                borderRadius: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 1,
+                                py: '10px',
+                                '&:hover': { backgroundColor: '#0071EB' },
+                            }}
+                            onClick={handleSubmit}
+                        >
+                            Finalizar
+                        </Button>
+                    </Box>
                 </Box>
             )}
-
 
             {pinpadTxId && (
                 <PinpadStatusPoller

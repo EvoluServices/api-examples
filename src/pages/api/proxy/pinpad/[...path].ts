@@ -9,10 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
         const { env, apiKey, apiSecret, merchantKey } = await readSession(req);
 
-        // Logs seguros (nunca mostra segredo completo)
-        console.log('[Proxy PINPAD] env:', env);
         const maskedKey = apiKey ? apiKey.slice(0, 3) + '***' + apiKey.slice(-2) : '(empty)';
-        console.log('[Proxy PINPAD] apiKey:', maskedKey, 'apiSecret?', !!apiSecret);
 
         // Base URL do ambiente
         const baseUrl =
@@ -27,13 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             req.headers['authorization']?.toString().replace(/^Bearer\s+/i, '') ||
             req.headers['bearer'];
 
-
-        console.log('\n[Proxy PINPAD]');
-        console.log('→ URL:', url);
-        console.log('→ Método:', req.method);
-        console.log('→ Token Bearer (header):', bearerToken);
-        console.log('→ Body ORIGINAL:', req.body);
-
         const headers: any = { 'Content-Type': 'application/json' };
 
         // Para endpoints que NÃO são o de token, exigimos header 'bearer'
@@ -45,8 +35,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // ✅ Header compatível com EvoluServices
             headers['bearer'] = String(bearerToken);
         }
-
-
 
         // Sempre adiciona Basic Auth (para o backend EvoluServices)
         const credentials = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
@@ -66,27 +54,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 });
             }
 
-            // ✅ Formato correto exigido pela EvoluServices
             outBody = {
                 auth: {
                     username,
                     apiKey: password,
                 },
             };
-
-            console.log('[Proxy PINPAD] 🔑 Normalizando BODY de token:', {
-                username: username?.slice(0, 3) + '***',
-                apiKey: password ? '***' : '(empty)',
-            });
         }
 
-        // Logs de debug final
-        console.log('[Proxy PINPAD] isTokenRequest:', isTokenRequest);
-        console.log('[Proxy PINPAD] will send BODY:', outBody);
-
-        // -----------------------------------------------------------------
-        // 🔹 Requisição à API EvoluServices com método dinâmico
-        // -----------------------------------------------------------------
         const result = await axios({
             method: isTokenRequest ? 'POST' : req.method,
             url,
@@ -94,10 +69,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             headers,
         });
 
-
-        // -----------------------------------------------------------------
-        // 🔹 Retorna a resposta da API
-        // -----------------------------------------------------------------
         res.status(result.status).json(result.data);
     } catch (error: any) {
         console.error('❌ Erro no proxy de Pinpad:', {

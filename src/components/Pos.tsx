@@ -1,22 +1,18 @@
 import React, {useEffect, useState} from 'react';
 import {
     Box,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    TextField,
     Button,
     Snackbar,
     Alert,
     AlertColor,
     Typography,
     Grid,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    TextField,
 } from '@mui/material';
-import {IconButton} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-
 import {brands} from '@/components/Brand';
 import {useTransaction} from '@/contexts/TransactionContext';
 import {onlyDigits, isCpfCnpjLenValid, maskCpfCnpj} from '@/utils/document';
@@ -24,8 +20,8 @@ import {parseApiError} from '@/utils/httpErrors';
 import {regexEmail} from '@/utils/regex';
 import axios from 'axios';
 import PosStatusPoller from '@/components/pos/PosStatusPoller';
+import Beneficiaries from '@/components/split/Beneficiaries';
 import type {TxResult} from '@/types/transactions';
-import PinpadStatusPoller from "@/components/pinpad/PinpadStatusPoller";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import PaymentIcon from "@mui/icons-material/Payment";
 
@@ -80,8 +76,7 @@ export default function Pos({
 
     const [pinpadTxId, setPinpadTxId] = useState<string | null>(null);
 
-    // Tipo de repasse dentro do split: manual ou automático
-    const [repasseType, setRepasseType] = useState<'manual' | 'automatico' | null>(null);
+    const [splitsOk, setSplitsOk] = useState(true);
 
 
     const [snackbar, setSnackbar] = useState({
@@ -91,78 +86,24 @@ export default function Pos({
         description: '',
     });
 
-    // ------------------------------------------------------
-    // 🧩 Parte 1 - Estados de controle do fluxo de venda
-    // ------------------------------------------------------
-
-    // Tipo de venda: 'convencional', 'split' ou nenhum selecionado ainda
     const [saleType, setSaleType] = useState<'convencional' | 'split' | null>(null);
 
-    // Lista de fornecedores e regras de split
     const [splits, setSplits] = useState<
         { code: string; value: string; chargeFees: boolean }[]
     >([]);
 
-    // Lista simulada de fornecedores (pode vir de API futuramente)
-    // Lista de fornecedores reais vindos da API
-    const [fornecedores, setFornecedores] = useState<{ code: string; name: string }[]>([]);
-    const addSplit = () =>
-        setSplits((prev) => [...prev, { code: '', value: '', chargeFees: false }]);
-
-    useEffect(() => {
-        const fetchSuppliers = async () => {
-            try {
-                console.log('🚀 Buscando fornecedores para POS...');
-                const token = await fetchBearerToken();
-
-                if (!token) {
-                    console.error('❌ Nenhum token retornado.');
-                    return;
-                }
-
-                const meResp = await axios.get('/api/session/me');
-                const merchantKey = meResp?.data?.merchantKey;
-                if (!merchantKey) {
-                    console.error('❌ MerchantKey ausente na sessão.');
-                    return;
-                }
-
-                // ✅ Ajuste: rota POS em vez de PINPAD
-                const url = `/api/proxy/pos/remote/merchants/${merchantKey}/recipients`;
-                console.log('🔗 Fazendo requisição para:', url);
-
-                const res = await axios.get(url, {
-                    headers: { bearer: token },
-                    params: { t: Date.now() }, // evita cache
-                });
-
-                console.log('📦 Resposta fornecedores POS:', res.data);
-
-                if (Array.isArray(res.data) && res.data.length) {
-                    const mapped = res.data.map((r: any) => ({
-                        code: r.code,
-                        name: r.name,
-                    }));
-                    console.log('✅ Fornecedores mapeados POS:', mapped);
-                    setFornecedores(mapped);
-                } else {
-                    console.warn('⚠️ Nenhum fornecedor encontrado ou formato inesperado:', res.data);
-                    setFornecedores([]);
-                }
-            } catch (err: any) {
-                console.error('❌ Erro ao buscar fornecedores POS:', err.response?.data || err);
-                setFornecedores([]);
-            }
-        };
-
-        if (saleType === 'split') {
-            fetchSuppliers();
-        }
-    }, [saleType]);
-
-
     // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
+        // Impede finalizar quando soma dos splits excede o valor da venda
+        if (saleType === 'split' && !splitsOk) {
+            setSnackbar({
+                open: true,
+                severity: 'error',
+                title: 'Valor de split inválido',
+                description: 'A soma dos splits não pode exceder o valor da venda.',
+            });
+            return;
+        }
 
         const docDigits = onlyDigits(customerDocument);
         const validName = customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName);
@@ -281,7 +222,7 @@ export default function Pos({
                     paymentBrand: cleanedBrand,
                     callbackUrl:
                         'https://dqf9sjszu5.execute-api.us-east-2.amazonaws.com/prod/TransactionCallbackHandler',
-                    ...(saleType === 'split' && {splits}),
+                    ...(saleType === 'split' && { splits }),
                 },
             };
 
@@ -321,7 +262,7 @@ export default function Pos({
     return (
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, mt: 2}}>
 
-            {/* 🧭 Botões de tipo de venda (Convencional / Split) */}
+            {/* 🧭 Botões de tipo de venda (Convencional / split) */}
             <Box sx={{display: 'flex', gap: 2}}>
                 <Button
                     variant={saleType === 'convencional' ? 'contained' : 'outlined'}
@@ -357,7 +298,7 @@ export default function Pos({
                     variant={saleType === 'split' ? 'contained' : 'outlined'}
                     onClick={() => {
                         setSaleType('split');
-                        setSplits([]);
+                        setSplits([{ code: '', value: '', chargeFees: false }]);
                         setPaymentType('' as any);
                         setCardBrand('');
                         setInstallments('');
@@ -384,184 +325,14 @@ export default function Pos({
                 </Button>
             </Box>
 
-            {/* Tipo de repasse — aparece apenas no modo Split */}
             {saleType === 'split' && (
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    {/* Botão Manual */}
-                    <Button
-                        onClick={() => {
-                            setRepasseType('manual');
-                            if (splits.length === 0) {
-                                addSplit(); // adiciona automaticamente o primeiro container
-                            }
-                        }}
-                        sx={{
-                            flex: 1,
-                            minHeight: 60,
-                            borderRadius: 4,
-                            border: '2px solid #0071EB',
-                            backgroundColor: '#fff',
-                            color: '#0071EB',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            '&:hover': { backgroundColor: '#f7faff' },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                border: '2px solid #0071EB',
-                                backgroundColor: repasseType === 'manual' ? '#0071EB' : 'transparent',
-                            }}
-                        />
-                        MANUAL
-                    </Button>
-
-                    {/* Botão Automático */}
-                    <Button
-                        onClick={() => {
-                            setRepasseType('automatico');
-                            if (splits.length === 0) {
-                                addSplit(); // adiciona automaticamente o primeiro container
-                            }
-                        }}
-                        sx={{
-                            flex: 1,
-                            minHeight: 60,
-                            borderRadius: 4,
-                            border: '2px solid #0071EB',
-                            backgroundColor: '#fff',
-                            color: '#0071EB',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 1,
-                            '&:hover': { backgroundColor: '#f7faff' },
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                border: '2px solid #0071EB',
-                                backgroundColor:
-                                    repasseType === 'automatico' ? '#0071EB' : 'transparent',
-                            }}
-                        />
-                        AUTOMÁTICO
-                    </Button>
-                </Box>
-            )}
-
-
-            {saleType === 'split' && repasseType && (
-                <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, mt: 2}}>
-                    {splits.map((split, index) => (
-                        <Box
-                            key={index}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 2,
-                                p: 2,
-                                border: '1px solid #ccc',
-                                borderRadius: 4,
-                                backgroundColor: '#fff',
-                            }}
-                        >
-                            {/* Fornecedor */}
-                            <FormControl sx={{ flex: 1 }}>
-                                <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
-                                <Select
-                                    labelId={`fornecedor-${index}`}
-                                    value={split.code}
-                                    label="Fornecedor"
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].code = e.target.value as string;
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ borderRadius: 4 }}
-                                >
-                                    {fornecedores.map((f) => (
-                                        <MenuItem key={f.code} value={f.code}>
-                                            {f.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-
-                            {/* Valor — só no manual */}
-                            {repasseType === 'manual' && (
-                                <TextField
-                                    label="(R$)"
-                                    type="number"
-                                    value={split.value}
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].value = e.target.value;
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ flex: 0.6 }}
-                                />
-                            )}
-
-                            {/* Taxa */}
-                            <FormControl sx={{ flex: 0.5 }}>
-                                <InputLabel id={`taxa-${index}`}>Dividir taxa</InputLabel>
-                                <Select
-                                    labelId={`taxa-${index}`}
-                                    value={split.chargeFees ? 'true' : 'false'}
-                                    label="Taxa"
-                                    onChange={(e) => {
-                                        const updated = [...splits];
-                                        updated[index].chargeFees = e.target.value === 'true';
-                                        setSplits(updated);
-                                    }}
-                                    sx={{ borderRadius: 4 }}
-                                >
-                                    <MenuItem value="true">Sim</MenuItem>
-                                    <MenuItem value="false">Não</MenuItem>
-                                </Select>
-                            </FormControl>
-
-                            {/* + só na última linha */}
-                            {index === splits.length - 1 && (
-                                <IconButton
-                                    onClick={addSplit}
-                                    aria-label="adicionar"
-                                    sx={{
-                                        backgroundColor: '#0071EB',
-                                        color: '#fff',
-                                        '&:hover': { backgroundColor: '#005bb5' },
-                                    }}
-                                >
-                                    <AddCircleOutlineIcon />
-                                </IconButton>
-                            )}
-
-                            {/* Remover */}
-                            <IconButton
-                                color="error"
-                                onClick={() => setSplits(splits.filter((_, i) => i !== index))}
-                                aria-label="remover"
-                                sx={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
-                            >
-                                <DeleteIcon />
-                            </IconButton>
-                        </Box>
-                    ))}
-
-                </Box>
+                <Beneficiaries
+                    visible={saleType === 'split'}
+                    value={splits}
+                    onChange={setSplits}
+                    saleAmount={amountFloat}
+                    onValidityChange={setSplitsOk}
+                />
             )}
 
             <Grid container spacing={2} direction="column">
@@ -791,6 +562,7 @@ export default function Pos({
 
                     <Button
                         variant="contained"
+                        disabled={saleType === 'split' && !splitsOk}
                         sx={{
                             flex: 1,
                             backgroundColor: '#0071EB',
@@ -815,7 +587,7 @@ export default function Pos({
 
 
             {pinpadTxId && (
-                <PinpadStatusPoller
+                <PosStatusPoller
                     transactionId={pinpadTxId}
                     onStatusChange={(s) => onStatusChange?.(s)}
                     onPaymentChange={(v) => onPaymentChange?.(v)}
