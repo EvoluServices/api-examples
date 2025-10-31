@@ -17,6 +17,7 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PaymentIcon from '@mui/icons-material/Payment';
 import {brands} from '@/components/Brand';
 import {useTransaction} from '@/contexts/TransactionContext';
+import { useMerchant } from '@/contexts/MerchantContext';
 import {isCpfCnpjLenValid, maskCpfCnpj, onlyDigits} from '@/utils/document';
 import {parseApiError} from '@/utils/httpErrors';
 import {regexEmail} from '@/utils/regex';
@@ -56,6 +57,7 @@ export default function Pinpad({
         clearCustomerData,
     } = useTransaction();
 
+    const { merchant } = useMerchant();
     const amountFloat = parseFloat(amount || '0');
     const showBrand = paymentType === 'credit' || paymentType === 'debit';
     const showInstallments = paymentType === 'credit' && !!cardBrand;
@@ -84,18 +86,70 @@ export default function Pinpad({
         { code: string; value: string; chargeFees: boolean }[]
     >([]);
 
-    const handleSubmit = async () => {
+    // 💰 Taxa efetiva baseada na modalidade e bandeira
+    const [feeRate, setFeeRate] = useState(0);
 
-        // Impede finalizar quando soma dos splits excede o valor da venda
-        if (saleType === 'split' && !splitsOk) {
+    useEffect(() => {
+        // Só executa se bandeira e parcelas estiverem definidos
+        if (!cardBrand || !installments) return;
+
+        // Verifica se o cadastro do cliente tem uma tabela de taxas
+        const merchantRates = merchant?.installmentRates;
+        // Exemplo: merchant.installmentRates = {
+        //   VISA: { '1': 0.029, '2': 0.034, ... },
+        //   MASTERCARD: { '1': 0.030, '2': 0.035, ... },
+        // }
+
+        let rate = 0;
+
+        if (merchantRates && merchantRates[cardBrand] && merchantRates[cardBrand][installments]) {
+            rate = merchantRates[cardBrand][installments];
+            console.log(`💳 Taxa do cadastro para ${cardBrand} ${installments}x: ${(rate * 100).toFixed(2)}%`);
+        } else {
+            // fallback: se não houver tabela específica, usar taxa geral do merchant ou algum padrão
+            rate = merchant?.feeRate ?? 0;
+            console.log(`⚠️ Usando taxa geral: ${(rate * 100).toFixed(2)}%`);
+        }
+
+        setFeeRate(rate);
+    }, [cardBrand, installments, merchant]);
+
+
+    const handleSubmit = async () => {
+        // ✅ Recalcula o valor líquido permitido no momento do clique
+        const saleValue = parseFloat(amount || '0');
+        const netAvailable = saleValue * (1 - (feeRate || 0));
+        const totalSplit = splits.reduce(
+            (acc, s) => acc + (parseFloat(s.value || '0') || 0),
+            0
+        );
+
+        // 🚫 Bloqueia se ultrapassar o valor líquido
+        if (saleType === 'split' && totalSplit > netAvailable + 1e-6) {
             setSnackbar({
                 open: true,
-                severity: 'error',
-                title: 'Valor de split inválido',
-                description: 'A soma dos splits não pode exceder o valor da venda.',
+                severity: 'warning',
+                title: 'Valor de repasse inválido',
+                description: `O total dos repasses (${totalSplit.toFixed(2)}) ultrapassa o valor líquido permitido (${netAvailable.toFixed(2)}) após a taxa de ${(feeRate * 100).toFixed(2)}%. 
+Ajuste os valores antes de continuar.`,
             });
             return;
         }
+
+        // 🚫 Bloqueia envio se flag global ainda estiver falsa
+        if (saleType === 'split' && !splitsOk) {
+            setSnackbar({
+                open: true,
+                severity: 'warning',
+                title: 'Valor do repasse inválido',
+                description: `O total dos repasses ultrapassa o valor líquido permitido após a taxa de ${(feeRate * 100).toFixed(2)}%. 
+Ajuste os valores antes de continuar.`,
+            });
+            return;
+        }
+
+
+
 
         const docDigits = onlyDigits(customerDocument);
         const validName = customerName && /^[A-Za-zÀ-ÿ\s]+$/.test(customerName);
@@ -222,7 +276,7 @@ export default function Pinpad({
                 },
             };
 
-            const headers = { bearer: token, 'Content-Type': 'application/json' };
+            const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
             const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, { headers });
             return res.data;
 
@@ -341,14 +395,33 @@ export default function Pinpad({
             </Box>
 
             {/* Containers de fornecedores */}
+            {/* Containers de fornecedores */}
             {saleType === 'split' && (
-                <Beneficiaries
-                    visible={saleType === 'split'}
-                    value={splits}
-                    onChange={setSplits}
-                    saleAmount={amountFloat}
-                    onValidityChange={setSplitsOk}
-                />
+                <>
+                    <Beneficiaries
+                        visible={saleType === 'split'}
+                        value={splits}
+                        onChange={setSplits}
+                        saleAmount={amountFloat}
+                        onValidityChange={setSplitsOk}
+                        feeRate={feeRate} // ✅ taxa sendo passada para o Beneficiaries
+                    />
+
+                    {/* 🧾 Exibe a taxa aplicada (opcional, mas útil) */}
+                    {feeRate > 0 && (
+                        <Typography
+                            sx={{
+                                color: 'text.secondary',
+                                fontSize: 13,
+                                mt: -1,
+                                ml: 1,
+                                fontStyle: 'italic',
+                            }}
+                        >
+                            Taxa aplicada: {(feeRate * 100).toFixed(2)}%
+                        </Typography>
+                    )}
+                </>
             )}
 
             {/* Container geral */}
@@ -382,7 +455,7 @@ export default function Pinpad({
                             sx={{
                                 borderRadius: 3,
                                 textTransform: 'none',
-                                minWidth: 120,
+                                minWidth: 128,
                                 borderColor: '#0071EB',
                                 color: paymentType === 'credit' ? '#fff' : '#0071EB',
                                 backgroundColor: paymentType === 'credit' ? '#0071EB' : 'transparent',
@@ -417,7 +490,7 @@ export default function Pinpad({
                             sx={{
                                 borderRadius: 3,
                                 textTransform: 'none',
-                                minWidth: 120,
+                                minWidth: 128,
                                 borderColor: '#0071EB',
                                 color: paymentType === 'debit' ? '#fff' : '#0071EB',
                                 backgroundColor: paymentType === 'debit' ? '#0071EB' : 'transparent',
@@ -433,7 +506,6 @@ export default function Pinpad({
                             Débito
                         </Button>
                     </Box>
-
                 </Grid>
 
                 {/* Bandeira e fluxo seguinte — só aparece após selecionar crédito/débito */}
@@ -447,7 +519,8 @@ export default function Pinpad({
                                 label="Bandeira"
                                 sx={{ borderRadius: 4, backgroundColor: '#fff', mt: 1 }}
                                 onChange={(e) => {
-                                    setCardBrand(e.target.value as string);
+                                    const newBrand = e.target.value as string;
+                                    setCardBrand(newBrand);
                                     setInstallments('');
                                     clearCustomerData();
                                     setCustomerName('');
@@ -456,6 +529,9 @@ export default function Pinpad({
                                     setTouchedName(false);
                                     setTouchedDocument(false);
                                     setTouchedEmail(false);
+
+                                    // 🔁 Força o Beneficiaries recalcular o valor permitido com a nova taxa
+                                    setTimeout(() => setSplits((prev) => [...prev]), 0);
                                 }}
                             >
                                 {filteredBrands.map((b) => (
@@ -474,46 +550,38 @@ export default function Pinpad({
                         </FormControl>
                     </Grid>
                 )}
-
-                {/* Parcelamento (abaixo da bandeira) */}
-                {showInstallments && (
-                    <Grid>
-                        <FormControl fullWidth>
-                            <InputLabel id="installments-label">Parcelamento</InputLabel>
-                            <Select
-                                labelId="installments-label"
-                                value={installments}
-                                label="Parcelamento"
-                                sx={{ borderRadius: 4, backgroundColor: '#fff', mt: 1 }}
-                                onChange={(e) => {
-                                    setInstallments(e.target.value as string);
-                                    clearCustomerData();
-                                    setCustomerName('');
-                                    setCustomerDocument('');
-                                    setCustomerEmail('');
-                                    setTouchedName(false);
-                                    setTouchedDocument(false);
-                                    setTouchedEmail(false);
-                                }}
-                            >
-                                {[...Array(24)].map((_, i) => {
-                                    const qty = i + 1;
-                                    const per = amountFloat > 0 ? amountFloat / qty : 0;
-                                    return (
-                                        <MenuItem key={qty} value={String(qty)}>
-                                            {qty}x de{' '}
-                                            {per.toLocaleString('pt-BR', {
-                                                style: 'currency',
-                                                currency: 'BRL',
-                                            })}
-                                        </MenuItem>
-                                    );
-                                })}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                )}
             </Grid>
+
+            {/* Parcelamento — aparece após escolher bandeira no crédito */}
+            {showInstallments && (
+                <Grid>
+                    <FormControl fullWidth>
+                        <InputLabel id="installments-label">Parcelas</InputLabel>
+                        <Select
+                            labelId="installments-label"
+                            value={installments || ''}
+                            label="Parcelas"
+                            sx={{ borderRadius: 4, backgroundColor: '#fff', mt: 1 }}
+                            onChange={(e) => {
+                                const newInstallments = e.target.value as string;
+                                setInstallments(newInstallments);
+                            }}
+                        >
+                            {[...Array(12)].map((_, i) => {
+                                const num = i + 1;
+                                const parcela = amountFloat / num;
+                                return (
+                                    <MenuItem key={num} value={num.toString()}>
+                                        {num}x de R$ {parcela.toFixed(2).replace('.', ',')}
+                                    </MenuItem>
+                                );
+                            })}
+                        </Select>
+                    </FormControl>
+                </Grid>
+            )}
+
+
 
             {showCustomerFields && (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
