@@ -315,7 +315,7 @@ export default function Beneficiaries({
                                         '&:hover': { backgroundColor: '#005bb5' },
                                     }}
                                 >
-                                    Incluir
+                                    Adicionar
                                 </Button>
                             ) : (
                                 // placeholder para manter alinhamento nas linhas intermediárias
