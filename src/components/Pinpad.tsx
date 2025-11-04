@@ -107,17 +107,18 @@ export default function Pinpad({
         } else {
 
             if (paymentType === 'debit') {
-                rate = 0.0198; // 1,98%
+                rate = 0.0198; // débito (1,98%)
             } else if (paymentType === 'credit') {
                 if (n === 1) {
-                    rate = 0.0299; // 2,99%
+                    rate = 0.0289; // 2,89%
                 } else if (n <= 6) {
-                    rate = 0.0349; // 3,49%
+                    rate = 0.0339; // 3,39%
                 } else if (n <= 12) {
-                    rate = 0.0389; // 3,89%
+                    rate = 0.0379; // 3,79%
                 }
             }
         }
+
 
         setFeeRate(rate);
     }, [paymentType, installments, merchant]);
