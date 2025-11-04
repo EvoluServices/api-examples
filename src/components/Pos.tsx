@@ -22,9 +22,9 @@ import axios from 'axios';
 import PosStatusPoller from '@/components/pos/PosStatusPoller';
 import Beneficiaries from '@/components/split/Beneficiaries';
 import type {TxResult} from '@/types/transactions';
-import CreditCardIcon from "@mui/icons-material/CreditCard";
-import PaymentIcon from "@mui/icons-material/Payment";
-
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import PaymentIcon from '@mui/icons-material/Payment';
+import { useMerchant } from '@/contexts/MerchantContext';  // 👈 NOVO
 
 type PosProps = {
     autoSubmitNonce?: number;
@@ -59,6 +59,8 @@ export default function Pos({
         clearCustomerData,
     } = useTransaction();
 
+    const { merchant } = useMerchant();                // 👈 NOVO
+
     const amountFloat = parseFloat(amount || '0');
 
     const showBrand = paymentType === 'credit' || paymentType === 'debit';
@@ -78,7 +80,6 @@ export default function Pos({
 
     const [splitsOk, setSplitsOk] = useState(true);
 
-
     const [snackbar, setSnackbar] = useState({
         open: false,
         severity: 'error' as AlertColor,
@@ -92,15 +93,82 @@ export default function Pos({
         { code: string; value: string; chargeFees: boolean }[]
     >([]);
 
+    // 💰 Taxa efetiva baseada na modalidade / parcelas
+    const [feeRate, setFeeRate] = useState(0);
+
+    useEffect(() => {
+        // débito: consideramos 1x por padrão (setamos isso no click do botão)
+        if (!installments) {
+            setFeeRate(0);
+            return;
+        }
+
+        const n = Number(installments);
+        let rate = 0;
+
+        const table = merchant?.installmentRates;
+        const typeKey = paymentType === 'debit' ? 'debit' : 'credit';
+
+        if (table && table[typeKey] && typeof table[typeKey][n] === 'number') {
+            rate = table[typeKey][n];
+            console.log(
+                `💳 Taxa do merchant (${typeKey}) para ${n}x: ${(rate * 100).toFixed(2)}%`
+            );
+        } else {
+            // fallback padrão (igual ao Pinpad)
+            if (paymentType === 'debit') {
+                rate = 0.0198; // 1,98%
+            } else if (paymentType === 'credit') {
+                if (n === 1) {
+                    rate = 0.0299; // 2,99%
+                } else if (n <= 6) {
+                    rate = 0.0349; // 3,49%
+                } else if (n <= 12) {
+                    rate = 0.0389; // 3,89%
+                }
+            }
+            console.log(
+                `⚠️ Usando taxa default (${typeKey}) ${n}x: ${(rate * 100).toFixed(2)}%`
+            );
+        }
+
+        setFeeRate(rate);
+    }, [paymentType, installments, merchant]);
+
     // ⬇️ o próximo bloco é a função handleSubmit
     const handleSubmit = async () => {
-        // Impede finalizar quando soma dos splits excede o valor da venda
+        // ✅ Recalcula valor líquido permitido (valor da venda - taxa)
+        const saleValue = parseFloat(amount || '0');
+        const netAvailable = saleValue * (1 - (feeRate || 0));
+        const totalSplit = splits.reduce(
+            (acc, s) => acc + (parseFloat(s.value || '0') || 0),
+            0
+        );
+
+        // 🚫 Bloqueia se ultrapassar o valor líquido
+        if (saleType === 'split' && totalSplit > netAvailable + 1e-6) {
+            setSnackbar({
+                open: true,
+                severity: 'warning',
+                title: 'Valor de repasse inválido',
+                description: `O total dos repasses (${totalSplit.toFixed(
+                    2
+                )}) ultrapassa o valor líquido permitido (${netAvailable.toFixed(
+                    2
+                )}) após a taxa de ${(feeRate * 100).toFixed(2)}%. 
+Ajuste os valores antes de continuar.`,
+            });
+            return;
+        }
+
+        // 🚫 Bloqueia se o Beneficiaries já marcou como inválido
         if (saleType === 'split' && !splitsOk) {
             setSnackbar({
                 open: true,
-                severity: 'error',
-                title: 'Valor de split inválido',
-                description: 'A soma dos splits não pode exceder o valor da venda.',
+                severity: 'warning',
+                title: 'Valor do repasse inválido',
+                description: `O total dos repasses ultrapassa o valor líquido permitido após a taxa de ${(feeRate * 100).toFixed(2)}%. 
+Ajuste os valores antes de continuar.`,
             });
             return;
         }
@@ -123,7 +191,6 @@ export default function Pos({
             return;
         }
 
-
         const token = await fetchBearerToken();
         if (!token) {
             setSnackbar({
@@ -145,11 +212,10 @@ export default function Pos({
                 customerName,
                 customerDocument,
                 amount: amountFloat.toFixed(2),
-                installments
+                installments,
             });
             onStatusChange?.('PROCESSING');
             onPaymentChange?.(0);
-
         } else {
             setSnackbar({
                 open: true,
@@ -162,7 +228,6 @@ export default function Pos({
 
     const fetchBearerToken = async () => {
         try {
-            // Proxy do Pinpad já injeta Basic Auth via sessão JWE; body pode ser vazio
             const res = await axios.post(`/api/proxy/pinpad/remote/token`, {});
             return res.data?.Bearer || null;
         } catch (err) {
@@ -229,7 +294,6 @@ export default function Pos({
             const headers = {bearer: token, 'Content-Type': 'application/json'};
             const res = await axios.post(`/api/proxy/pinpad/remote/transaction`, payload, {headers});
             return res.data;
-
         } catch (error: any) {
             const {title, description} = parseApiError(error);
             setSnackbar({open: true, severity: 'error', title, description});
@@ -261,7 +325,6 @@ export default function Pos({
 
     return (
         <Box sx={{display: 'flex', flexDirection: 'column', gap: 2, mt: 2}}>
-
             {/* 🧭 Botões de tipo de venda (Convencional / split) */}
             <Box sx={{display: 'flex', gap: 2}}>
                 <Button
@@ -325,17 +388,23 @@ export default function Pos({
                 </Button>
             </Box>
 
+            {/* Containers de fornecedores */}
             {saleType === 'split' && (
-                <Beneficiaries
-                    visible={saleType === 'split'}
-                    value={splits}
-                    onChange={setSplits}
-                    saleAmount={amountFloat}
-                    onValidityChange={setSplitsOk}
-                />
+                <>
+                    <Beneficiaries
+                        visible={saleType === 'split'}
+                        value={splits}
+                        onChange={setSplits}
+                        saleAmount={amountFloat}
+                        onValidityChange={setSplitsOk}
+                        feeRate={feeRate}
+                    />
+                </>
             )}
 
+            {/* Container geral */}
             <Grid container spacing={2} direction="column">
+                {/* Linha dos botões Crédito/Débito */}
                 <Grid>
                     <Box
                         display="flex"
@@ -387,7 +456,7 @@ export default function Pos({
                             onClick={() => {
                                 setPaymentType('debit');
                                 setCardBrand('');
-                                setInstallments('');
+                                setInstallments('1');
                                 clearCustomerData();
                                 setCustomerName('');
                                 setCustomerDocument('');
@@ -415,7 +484,6 @@ export default function Pos({
                             Débito
                         </Button>
                     </Box>
-
                 </Grid>
 
                 {/* Bandeira e fluxo seguinte — só aparece após selecionar crédito/débito */}
@@ -429,7 +497,8 @@ export default function Pos({
                                 label="Bandeira"
                                 sx={{borderRadius: 4, backgroundColor: '#fff', mt: 1}}
                                 onChange={(e) => {
-                                    setCardBrand(e.target.value as string);
+                                    const newBrand = e.target.value as string;
+                                    setCardBrand(newBrand);
                                     setInstallments('');
                                     clearCustomerData();
                                     setCustomerName('');
@@ -438,6 +507,9 @@ export default function Pos({
                                     setTouchedName(false);
                                     setTouchedDocument(false);
                                     setTouchedEmail(false);
+
+                                    // 🔁 força o Beneficiaries recalcular com nova taxa
+                                    setTimeout(() => setSplits((prev) => [...prev]), 0);
                                 }}
                             >
                                 {filteredBrands.map((b) => (
@@ -457,25 +529,19 @@ export default function Pos({
                     </Grid>
                 )}
 
-                {/* Parcelamento (abaixo da bandeira) */}
+                {/* Parcelamento (abaixo da bandeira) – só crédito */}
                 {showInstallments && (
                     <Grid>
                         <FormControl fullWidth>
                             <InputLabel id="installments-label">Parcelamento</InputLabel>
                             <Select
                                 labelId="installments-label"
-                                value={installments}
+                                value={installments || ''}
                                 label="Parcelamento"
                                 sx={{borderRadius: 4, backgroundColor: '#fff', mt: 1}}
                                 onChange={(e) => {
-                                    setInstallments(e.target.value as string);
-                                    clearCustomerData();
-                                    setCustomerName('');
-                                    setCustomerDocument('');
-                                    setCustomerEmail('');
-                                    setTouchedName(false);
-                                    setTouchedDocument(false);
-                                    setTouchedEmail(false);
+                                    const newInstallments = e.target.value as string;
+                                    setInstallments(newInstallments);
                                 }}
                             >
                                 {[...Array(24)].map((_, i) => {
@@ -497,7 +563,6 @@ export default function Pos({
                 )}
             </Grid>
 
-
             {showCustomerFields && (
                 <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
                     <TextField
@@ -518,7 +583,6 @@ export default function Pos({
                         }}
                         onBlur={() => setTouchedDocument(true)}
                         error={touchedDocument && !isCpfCnpjLenValid(onlyDigits(customerDocument))}
-
                         sx={{'& .MuiOutlinedInput-root': {borderRadius: 4, backgroundColor: '#FFF'}}}
                     />
                     <TextField
@@ -531,7 +595,6 @@ export default function Pos({
                     />
                 </Box>
             )}
-
 
             {showSubmitButton && (
                 <Box sx={{display: 'flex', gap: 2, mt: 1}}>
@@ -584,7 +647,6 @@ export default function Pos({
                     </Button>
                 </Box>
             )}
-
 
             {pinpadTxId && (
                 <PosStatusPoller

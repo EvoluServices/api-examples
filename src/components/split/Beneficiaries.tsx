@@ -10,6 +10,7 @@ import {
     IconButton,
     Switch,
     Typography,
+    Button,
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -156,7 +157,8 @@ export default function Beneficiaries({
 
         if (!isValid) {
             console.warn(
-                `⚠️ Valor de repasse acima do limite: ${fmtMoney(totalSplit)} > ${fmtMoney(netAvailable)} (taxa ${(feeRate * 100).toFixed(2)}%)`
+                `⚠️ Valor de repasse acima do limite: ${fmtMoney(totalSplit)} 
+                > ${fmtMoney(netAvailable)} (taxa ${(feeRate * 100).toFixed(2)}%)`
             );
         }
         // Dependências estáveis: apenas variáveis necessárias
@@ -172,22 +174,6 @@ export default function Beneficiaries({
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            {/* 💰 Mostra taxa e valor líquido disponível */}
-            {feeRate > 0 && (
-                <Typography
-                    sx={{
-                        color: 'text.secondary',
-                        fontSize: 13,
-                        mt: 0.5,
-                        ml: 0.5,
-                        fontStyle: 'italic',
-                    }}
-                >
-                    💰 Taxa do merchant aplicada: {(feeRate * 100).toFixed(2)}% — valor líquido
-                    disponível: {fmtMoney(netAvailable)}.
-                </Typography>
-            )}
-
             {value.map((split, index) => (
                 <Box
                     key={index}
@@ -204,36 +190,36 @@ export default function Beneficiaries({
                 >
                     {/* Fornecedor + Valor */}
                     <Box sx={{ display: 'flex', gap: 2 }}>
-                        <FormControl sx={{ flex: 1 }}>
-                            <InputLabel id={`fornecedor-${index}`}>Fornecedor</InputLabel>
-                            <Select
-                                size="small"
-                                labelId={`fornecedor-${index}`}
-                                value={split.code}
-                                label="Fornecedor"
-                                onChange={(e) => updateIndex(index)({ code: e.target.value })}
-                                sx={{
+                        <TextField
+                            select
+                            size="small"
+                            label="Fornecedor"
+                            value={split.code}
+                            onChange={(e) => updateIndex(index)({ code: e.target.value as string })}
+                            sx={{
+                                flex: 1,
+                                '& .MuiOutlinedInput-root': {
                                     borderRadius: 3,
-                                    '& .MuiOutlinedInput-notchedOutline': {
+                                    '& fieldset': {
                                         borderColor: '#0071EB',
                                         borderWidth: '1.5px',
                                     },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                                    '&:hover fieldset': {
                                         borderColor: '#005bb5',
                                     },
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                    '&.Mui-focused fieldset': {
                                         borderColor: '#004799',
                                         borderWidth: '2px',
                                     },
-                                }}
-                            >
-                                {suppliers.map((f) => (
-                                    <MenuItem key={f.code} value={f.code}>
-                                        {f.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                                },
+                            }}
+                        >
+                            {suppliers.map((f) => (
+                                <MenuItem key={f.code} value={f.code}>
+                                    {f.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
 
                         <TextField
                             size="small"
@@ -265,10 +251,17 @@ export default function Beneficiaries({
                     )}
 
                     {/* Dividir taxa + ações */}
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            gap: 2,
+                            alignItems: 'center',
+                        }}
+                    >
+                        {/* Bloco do toggle "Dividir taxa" */}
                         <Box
                             sx={{
-                                flex: 0.58,
+                                flex: 1,
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 1.5,
@@ -277,6 +270,7 @@ export default function Beneficiaries({
                                 px: 1.5,
                                 py: 1,
                                 height: 40,
+                                minWidth: 260,
                             }}
                         >
                             <PaidIcon sx={{ color: '#3D5C3F' }} />
@@ -292,18 +286,21 @@ export default function Beneficiaries({
                             />
                         </Box>
 
+                        {/* Bloco dos botões de ação */}
                         <Box
                             sx={{
-                                ml: 'auto',
+                                flex: 1,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 2,
                                 justifyContent: 'flex-end',
-                                height: 56,
+                                gap: 2,
+                                minWidth: 260,
                             }}
                         >
                             {index === value.length - 1 && (
-                                <IconButton
+                                <Button
+                                    variant="contained"
+                                    startIcon={<AddCircleOutlineIcon />}
                                     onClick={() => {
                                         const updated = [
                                             ...value,
@@ -311,29 +308,44 @@ export default function Beneficiaries({
                                         ];
                                         onChange(updated);
                                     }}
-                                    aria-label="adicionar"
-                                    size="small"
                                     sx={{
                                         backgroundColor: '#0071EB',
                                         color: '#fff',
-                                        width: 28,
-                                        height: 28,
-                                        '& svg': { fontSize: 18 },
+                                        textTransform: 'none',
+                                        borderRadius: 999,
+                                        px: 2.5,
+                                        py: 0.75,
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
                                         '&:hover': { backgroundColor: '#005bb5' },
-                                        ml: 1,
                                     }}
                                 >
-                                    <AddCircleOutlineIcon />
-                                </IconButton>
+                                    Adicionar
+                                </Button>
                             )}
 
-                            <IconButton
-                                color="error"
+                            <Button
+                                variant="contained"
+                                startIcon={<DeleteIcon />}
                                 onClick={() => onChange(value.filter((_, i) => i !== index))}
-                                aria-label="remover"
+                                sx={{
+                                    backgroundColor: '#E57373',
+                                    color: '#fff',
+                                    textTransform: 'none',
+                                    borderRadius: 999,
+                                    px: 2.5,
+                                    py: 0.75,
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    '&:hover': { backgroundColor: '#d05c5c' },
+                                }}
                             >
-                                <DeleteIcon />
-                            </IconButton>
+                                Deletar
+                            </Button>
                         </Box>
                     </Box>
                 </Box>

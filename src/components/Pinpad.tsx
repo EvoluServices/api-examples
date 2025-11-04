@@ -89,30 +89,38 @@ export default function Pinpad({
     // 💰 Taxa efetiva baseada na modalidade e bandeira
     const [feeRate, setFeeRate] = useState(0);
 
+    // 💰 Taxa efetiva baseada na modalidade / parcelas
     useEffect(() => {
-        // Só executa se bandeira e parcelas estiverem definidos
-        if (!cardBrand || !installments) return;
+        if (!installments) {
+            setFeeRate(0);
+            return;
+        }
 
-        // Verifica se o cadastro do cliente tem uma tabela de taxas
-        const merchantRates = merchant?.installmentRates;
-        // Exemplo: merchant.installmentRates = {
-        //   VISA: { '1': 0.029, '2': 0.034, ... },
-        //   MASTERCARD: { '1': 0.030, '2': 0.035, ... },
-        // }
-
+        const n = Number(installments);
         let rate = 0;
 
-        if (merchantRates && merchantRates[cardBrand] && merchantRates[cardBrand][installments]) {
-            rate = merchantRates[cardBrand][installments];
-            console.log(`💳 Taxa do cadastro para ${cardBrand} ${installments}x: ${(rate * 100).toFixed(2)}%`);
+        const table = merchant?.installmentRates;
+        const typeKey = paymentType === 'debit' ? 'debit' : 'credit';
+
+        if (table && table[typeKey] && typeof table[typeKey][n] === 'number') {
+            rate = table[typeKey][n];
         } else {
-            // fallback: se não houver tabela específica, usar taxa geral do merchant ou algum padrão
-            rate = merchant?.feeRate ?? 0;
-            console.log(`⚠️ Usando taxa geral: ${(rate * 100).toFixed(2)}%`);
+
+            if (paymentType === 'debit') {
+                rate = 0.0198; // 1,98%
+            } else if (paymentType === 'credit') {
+                if (n === 1) {
+                    rate = 0.0299; // 2,99%
+                } else if (n <= 6) {
+                    rate = 0.0349; // 3,49%
+                } else if (n <= 12) {
+                    rate = 0.0389; // 3,89%
+                }
+            }
         }
 
         setFeeRate(rate);
-    }, [cardBrand, installments, merchant]);
+    }, [paymentType, installments, merchant]);
 
 
     const handleSubmit = async () => {
@@ -395,7 +403,6 @@ Ajuste os valores antes de continuar.`,
             </Box>
 
             {/* Containers de fornecedores */}
-            {/* Containers de fornecedores */}
             {saleType === 'split' && (
                 <>
                     <Beneficiaries
@@ -404,23 +411,8 @@ Ajuste os valores antes de continuar.`,
                         onChange={setSplits}
                         saleAmount={amountFloat}
                         onValidityChange={setSplitsOk}
-                        feeRate={feeRate} // ✅ taxa sendo passada para o Beneficiaries
+                        feeRate={feeRate}
                     />
-
-                    {/* 🧾 Exibe a taxa aplicada (opcional, mas útil) */}
-                    {feeRate > 0 && (
-                        <Typography
-                            sx={{
-                                color: 'text.secondary',
-                                fontSize: 13,
-                                mt: -1,
-                                ml: 1,
-                                fontStyle: 'italic',
-                            }}
-                        >
-                            Taxa aplicada: {(feeRate * 100).toFixed(2)}%
-                        </Typography>
-                    )}
                 </>
             )}
 
@@ -478,7 +470,7 @@ Ajuste os valores antes de continuar.`,
                             onClick={() => {
                                 setPaymentType('debit');
                                 setCardBrand('');
-                                setInstallments('');
+                                setInstallments('1');
                                 clearCustomerData();
                                 setCustomerName('');
                                 setCustomerDocument('');
