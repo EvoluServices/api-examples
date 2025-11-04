@@ -11,6 +11,7 @@ import {
     Switch,
     Typography,
     Button,
+    Grid,
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -251,54 +252,46 @@ export default function Beneficiaries({
                     )}
 
                     {/* Dividir taxa + ações */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 2,
-                            alignItems: 'center',
-                        }}
+                    <Grid
+                        container
+                        spacing={2}
+                        alignItems="center"
+                        justifyContent="center"
+                        sx={{ mt: 0.5 }}
                     >
-                        {/* Bloco do toggle "Dividir taxa" */}
-                        <Box
-                            sx={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 1.5,
-                                border: '1px solid #ccc',
-                                borderRadius: 3,
-                                px: 1.5,
-                                py: 1,
-                                height: 40,
-                                minWidth: 260,
-                            }}
-                        >
-                            <PaidIcon sx={{ color: '#3D5C3F' }} />
-                            <Typography variant="body2" sx={{ flex: 1 }}>
-                                {split.chargeFees ? 'Sim Divide Taxa' : 'Não Divide Taxa'}
-                            </Typography>
-                            <Switch
-                                checked={!!split.chargeFees}
-                                onChange={(e) =>
-                                    updateIndex(index)({ chargeFees: e.target.checked })
-                                }
-                                inputProps={{ 'aria-label': 'Dividir taxa' }}
-                            />
-                        </Box>
+                        {/* Toggle "Dividir taxa" */}
+                        <Grid size={{ xs:12, md:6}}>
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    border: '1px solid #ccc',
+                                    borderRadius: 3,
+                                    px: 1.5,
+                                    py: 1,
+                                    height: 40,
+                                }}
+                            >
+                                <PaidIcon sx={{ color: '#3D5C3F' }} />
+                                <Typography variant="body2" sx={{ flex: 1 }}>
+                                    {split.chargeFees ? 'Sim Divide Taxa' : 'Não Divide Taxa'}
+                                </Typography>
+                                <Switch
+                                    checked={!!split.chargeFees}
+                                    onChange={(e) =>
+                                        updateIndex(index)({ chargeFees: e.target.checked })
+                                    }
+                                    inputProps={{ 'aria-label': 'Dividir taxa' }}
+                                />
+                            </Box>
+                        </Grid>
 
-                        {/* Bloco dos botões de ação */}
-                        <Box
-                            sx={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'flex-end',
-                                gap: 2,
-                                minWidth: 260,
-                            }}
-                        >
-                            {index === value.length - 1 && (
+                        {/* Botão Incluir */}
+                        <Grid size={{ xs:6, md:3}}>
+                            {index === value.length - 1 ? (
                                 <Button
+                                    fullWidth
                                     variant="contained"
                                     startIcon={<AddCircleOutlineIcon />}
                                     onClick={() => {
@@ -318,15 +311,22 @@ export default function Beneficiaries({
                                         fontWeight: 600,
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 1,
+                                        justifyContent: 'center',
                                         '&:hover': { backgroundColor: '#005bb5' },
                                     }}
                                 >
-                                    Adicionar
+                                    Incluir
                                 </Button>
+                            ) : (
+                                // placeholder para manter alinhamento nas linhas intermediárias
+                                <Box sx={{ height: 40 }} />
                             )}
+                        </Grid>
 
+                        {/* Botão Deletar */}
+                        <Grid size={{ xs:6, md:3}}>
                             <Button
+                                fullWidth
                                 variant="contained"
                                 startIcon={<DeleteIcon />}
                                 onClick={() => onChange(value.filter((_, i) => i !== index))}
@@ -340,14 +340,14 @@ export default function Beneficiaries({
                                     fontWeight: 600,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 1,
+                                    justifyContent: 'center',
                                     '&:hover': { backgroundColor: '#d05c5c' },
                                 }}
                             >
                                 Deletar
                             </Button>
-                        </Box>
-                    </Box>
+                        </Grid>
+                    </Grid>
                 </Box>
             ))}
         </Box>
